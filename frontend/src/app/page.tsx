@@ -117,6 +117,7 @@ export default function Home() {
   
   // Optimization state
   const [optimizingSection, setOptimizingSection] = useState<string | null>(null);
+  const [optimizingItemIndex, setOptimizingItemIndex] = useState<number | null>(null); // For individual item optimization
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizationResult, setOptimizationResult] = useState<SectionOptimizationResponse | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
@@ -124,6 +125,7 @@ export default function Home() {
   const [showATSInfoModal, setShowATSInfoModal] = useState(false);
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
   const [previousSectionData, setPreviousSectionData] = useState<any>(null);
+  const [bulkOptimizationProgress, setBulkOptimizationProgress] = useState<{current: number, total: number} | null>(null);
 
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,7 +314,7 @@ export default function Home() {
     setEditingData(null);
   };
 
-  const startOptimization = (section: string, event: React.MouseEvent<HTMLButtonElement>) => {
+  const startOptimization = (section: string, event: React.MouseEvent<HTMLButtonElement>, itemIndex?: number) => {
     if (!resumeData) return;
     
     const button = event.currentTarget;
@@ -329,6 +331,30 @@ export default function Home() {
     setPreviousSectionData(currentData);
     
     setOptimizingSection(section);
+    setOptimizingItemIndex(itemIndex ?? null);
+    setCustomPrompt('');
+    setOptimizationResult(null);
+    setShowOptimizationModal(true);
+  };
+
+  const startBulkOptimization = (section: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!resumeData) return;
+    
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    
+    // Position popup so its top-left corner touches the top-right corner of the button
+    setPopupPosition({
+      top: rect.top,
+      left: rect.right,
+    });
+    
+    // Store current section data for undo
+    const currentData = resumeData[section as keyof ResumeData];
+    setPreviousSectionData(currentData);
+    
+    setOptimizingSection(section);
+    setOptimizingItemIndex(null);
     setCustomPrompt('');
     setOptimizationResult(null);
     setShowOptimizationModal(true);
@@ -336,10 +362,12 @@ export default function Home() {
 
   const cancelOptimization = () => {
     setOptimizingSection(null);
+    setOptimizingItemIndex(null);
     setCustomPrompt('');
     setOptimizationResult(null);
     setShowOptimizationModal(false);
     setPreviousSectionData(null);
+    setBulkOptimizationProgress(null);
   };
 
   const optimizeSection = async () => {
@@ -348,11 +376,22 @@ export default function Home() {
       return;
     }
 
+    // Check if this is bulk optimization
+    const isBulkOptimization = optimizingItemIndex === null && 
+      ['experience', 'education', 'projects', 'publications', 'certifications', 'volunteer_experience', 'references'].includes(optimizingSection);
+
+    if (isBulkOptimization) {
+      await optimizeBulkSection();
+      return;
+    }
+
     setIsOptimizing(true);
     
     try {
       // Get current section data and wrap in appropriate format for backend (expects dict)
       let sectionData: any;
+      const rawData = resumeData[optimizingSection as keyof ResumeData];
+      
       switch (optimizingSection) {
         case 'summary':
           // Wrap string in object for backend
@@ -363,28 +402,47 @@ export default function Home() {
           sectionData = { skills: resumeData.skills };
           break;
         case 'experience':
-          // Wrap array in object for backend
-          sectionData = { experience: resumeData.experience };
+          // For individual experience item
+          if (optimizingItemIndex !== null) {
+            sectionData = { experience: [resumeData.experience[optimizingItemIndex]] };
+          } else {
+            sectionData = { experience: resumeData.experience };
+          }
           break;
         case 'education':
-          // Wrap array in object for backend
-          sectionData = { education: resumeData.education };
+          if (optimizingItemIndex !== null) {
+            sectionData = { education: [resumeData.education[optimizingItemIndex]] };
+          } else {
+            sectionData = { education: resumeData.education };
+          }
           break;
         case 'projects':
-          // Wrap array in object for backend
-          sectionData = { projects: resumeData.projects };
+          if (optimizingItemIndex !== null) {
+            sectionData = { projects: [resumeData.projects[optimizingItemIndex]] };
+          } else {
+            sectionData = { projects: resumeData.projects };
+          }
           break;
         case 'publications':
-          // Wrap array in object for backend
-          sectionData = { publications: resumeData.publications };
+          if (optimizingItemIndex !== null) {
+            sectionData = { publications: [resumeData.publications[optimizingItemIndex]] };
+          } else {
+            sectionData = { publications: resumeData.publications };
+          }
           break;
         case 'certifications':
-          // Wrap array in object for backend
-          sectionData = { certifications: resumeData.certifications };
+          if (optimizingItemIndex !== null) {
+            sectionData = { certifications: [resumeData.certifications[optimizingItemIndex]] };
+          } else {
+            sectionData = { certifications: resumeData.certifications };
+          }
           break;
         case 'volunteer_experience':
-          // Wrap array in object for backend
-          sectionData = { volunteer_experience: resumeData.volunteer_experience };
+          if (optimizingItemIndex !== null) {
+            sectionData = { volunteer_experience: [resumeData.volunteer_experience[optimizingItemIndex]] };
+          } else {
+            sectionData = { volunteer_experience: resumeData.volunteer_experience };
+          }
           break;
         case 'awards':
           // Wrap array in object for backend
@@ -395,8 +453,11 @@ export default function Home() {
           sectionData = { languages: resumeData.languages };
           break;
         case 'references':
-          // Wrap array in object for backend
-          sectionData = { references: resumeData.references };
+          if (optimizingItemIndex !== null) {
+            sectionData = { references: [resumeData.references[optimizingItemIndex]] };
+          } else {
+            sectionData = { references: resumeData.references };
+          }
           break;
         default:
           throw new Error('Invalid section');
@@ -424,7 +485,7 @@ export default function Home() {
       setOptimizationResult(result);
       
       // Auto-apply the optimization
-      applyOptimizationWithResult(result);
+      applyOptimizationWithResult(result, optimizingItemIndex);
     } catch (error) {
       console.error('Error optimizing section:', error);
       alert('Failed to optimize section. Please try again.');
@@ -433,7 +494,101 @@ export default function Home() {
     }
   };
 
-  const applyOptimizationWithResult = (result: SectionOptimizationResponse) => {
+  const optimizeBulkSection = async () => {
+    if (!resumeData || !jobDescription || !optimizingSection) return;
+    
+    setIsOptimizing(true);
+    const sectionArray = resumeData[optimizingSection as keyof ResumeData] as any[];
+    
+    if (!Array.isArray(sectionArray)) {
+      setIsOptimizing(false);
+      return;
+    }
+
+    const totalItems = sectionArray.length;
+    const optimizedItems: any[] = [];
+    const allChanges: string[] = [];
+
+    try {
+      for (let i = 0; i < totalItems; i++) {
+        setBulkOptimizationProgress({ current: i + 1, total: totalItems });
+        
+        let sectionData: any;
+        switch (optimizingSection) {
+          case 'experience':
+            sectionData = { experience: [sectionArray[i]] };
+            break;
+          case 'education':
+            sectionData = { education: [sectionArray[i]] };
+            break;
+          case 'projects':
+            sectionData = { projects: [sectionArray[i]] };
+            break;
+          case 'publications':
+            sectionData = { publications: [sectionArray[i]] };
+            break;
+          case 'certifications':
+            sectionData = { certifications: [sectionArray[i]] };
+            break;
+          case 'volunteer_experience':
+            sectionData = { volunteer_experience: [sectionArray[i]] };
+            break;
+          case 'references':
+            sectionData = { references: [sectionArray[i]] };
+            break;
+          default:
+            continue;
+        }
+
+        const response = await fetch('http://localhost:8000/optimize-section', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            resume_data: resumeData,
+            job_description: jobDescription,
+            section: optimizingSection,
+            section_data: sectionData,
+            custom_prompt: customPrompt,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const optimizedItem = result.optimized_section[optimizingSection][0];
+          optimizedItems.push(optimizedItem);
+          allChanges.push(...result.changes_made.map((change: string) => `Item ${i + 1}: ${change}`));
+        } else {
+          optimizedItems.push(sectionArray[i]); // Keep original on error
+        }
+      }
+
+      // Apply all optimizations at once
+      const updatedResumeData = { ...resumeData };
+      (updatedResumeData as any)[optimizingSection] = optimizedItems;
+      setResumeData(updatedResumeData);
+
+      // Set combined results
+      const combinedResult: SectionOptimizationResponse = {
+        success: true,
+        optimized_section: { [optimizingSection]: optimizedItems },
+        explanation: `Optimized all ${totalItems} items for the job description`,
+        changes_made: allChanges,
+        message: 'Bulk optimization complete'
+      };
+      setOptimizationResult(combinedResult);
+
+    } catch (error) {
+      console.error('Error during bulk optimization:', error);
+      alert('Failed to complete bulk optimization. Some items may have been optimized.');
+    } finally {
+      setIsOptimizing(false);
+      setBulkOptimizationProgress(null);
+    }
+  };
+
+  const applyOptimizationWithResult = (result: SectionOptimizationResponse, itemIndex: number | null = null) => {
     if (!resumeData || !optimizingSection) return;
 
     const updatedResumeData = { ...resumeData };
@@ -449,27 +604,51 @@ export default function Home() {
         break;
       case 'experience':
         // Unwrap from object format
-        updatedResumeData.experience = result.optimized_section.experience || result.optimized_section;
+        if (itemIndex !== null && result.optimized_section.experience) {
+          updatedResumeData.experience[itemIndex] = result.optimized_section.experience[0];
+        } else {
+          updatedResumeData.experience = result.optimized_section.experience || result.optimized_section;
+        }
         break;
       case 'education':
         // Unwrap from object format
-        updatedResumeData.education = result.optimized_section.education || result.optimized_section;
+        if (itemIndex !== null && result.optimized_section.education) {
+          updatedResumeData.education[itemIndex] = result.optimized_section.education[0];
+        } else {
+          updatedResumeData.education = result.optimized_section.education || result.optimized_section;
+        }
         break;
       case 'projects':
         // Unwrap from object format
-        updatedResumeData.projects = result.optimized_section.projects || result.optimized_section;
+        if (itemIndex !== null && result.optimized_section.projects) {
+          updatedResumeData.projects[itemIndex] = result.optimized_section.projects[0];
+        } else {
+          updatedResumeData.projects = result.optimized_section.projects || result.optimized_section;
+        }
         break;
       case 'publications':
         // Unwrap from object format
-        updatedResumeData.publications = result.optimized_section.publications || result.optimized_section;
+        if (itemIndex !== null && result.optimized_section.publications) {
+          updatedResumeData.publications[itemIndex] = result.optimized_section.publications[0];
+        } else {
+          updatedResumeData.publications = result.optimized_section.publications || result.optimized_section;
+        }
         break;
       case 'certifications':
         // Unwrap from object format
-        updatedResumeData.certifications = result.optimized_section.certifications || result.optimized_section;
+        if (itemIndex !== null && result.optimized_section.certifications) {
+          updatedResumeData.certifications[itemIndex] = result.optimized_section.certifications[0];
+        } else {
+          updatedResumeData.certifications = result.optimized_section.certifications || result.optimized_section;
+        }
         break;
       case 'volunteer_experience':
         // Unwrap from object format
-        updatedResumeData.volunteer_experience = result.optimized_section.volunteer_experience || result.optimized_section;
+        if (itemIndex !== null && result.optimized_section.volunteer_experience) {
+          updatedResumeData.volunteer_experience[itemIndex] = result.optimized_section.volunteer_experience[0];
+        } else {
+          updatedResumeData.volunteer_experience = result.optimized_section.volunteer_experience || result.optimized_section;
+        }
         break;
       case 'awards':
         // Unwrap from object format
@@ -481,7 +660,11 @@ export default function Home() {
         break;
       case 'references':
         // Unwrap from object format
-        updatedResumeData.references = result.optimized_section.references || result.optimized_section;
+        if (itemIndex !== null && result.optimized_section.references) {
+          updatedResumeData.references[itemIndex] = result.optimized_section.references[0];
+        } else {
+          updatedResumeData.references = result.optimized_section.references || result.optimized_section;
+        }
         break;
     }
 
@@ -534,8 +717,10 @@ export default function Home() {
     setShowOptimizationModal(false);
     setOptimizationResult(null);
     setOptimizingSection(null);
+    setOptimizingItemIndex(null);
     setCustomPrompt('');
     setPreviousSectionData(null);
+    setBulkOptimizationProgress(null);
   };
 
   const generateResumeText = (data: ResumeData) => {
@@ -1080,9 +1265,9 @@ export default function Home() {
                       </h2>
                       <div className="flex gap-2">
                         <button
-                          onClick={(e) => startOptimization('experience', e)}
+                          onClick={(e) => startBulkOptimization('experience', e)}
                           className="text-gray-500 hover:text-green-600 transition-colors"
-                          title="Optimize experience with AI"
+                          title="Optimize all experiences with AI"
                         >
                           <Target className="w-4 h-4" />
                         </button>
@@ -1179,11 +1364,20 @@ export default function Home() {
                     ) : (
                       <div className="space-y-6">
                         {resumeData.experience.map((exp, index) => (
-                          <div key={index}>
+                          <div key={index} className="relative group">
                             <div className="flex justify-between items-start mb-1">
-                              <div>
-                                <span className="font-bold text-gray-900 dark:text-gray-900">{exp.company}</span>
-                                <span className="text-gray-800 dark:text-gray-800 ml-1">{resumeData.location}</span>
+                              <div className="flex items-center gap-2">
+                                <div>
+                                  <span className="font-bold text-gray-900 dark:text-gray-900">{exp.company}</span>
+                                  <span className="text-gray-800 dark:text-gray-800 ml-1">{resumeData.location}</span>
+                                </div>
+                                <button
+                                  onClick={(e) => startOptimization('experience', e, index)}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-green-600"
+                                  title={`Optimize ${exp.company} role`}
+                                >
+                                  <Target className="w-3 h-3" />
+                                </button>
                               </div>
                               <span className="text-gray-700 dark:text-gray-700 font-medium">{exp.duration}</span>
                             </div>
@@ -2181,7 +2375,7 @@ export default function Home() {
             >
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                  Optimize {optimizingSection ? optimizingSection.charAt(0).toUpperCase() + optimizingSection.slice(1) : ''}
+                  {optimizingItemIndex !== null ? 'Optimize Item' : 'Optimize All'} - {optimizingSection ? optimizingSection.charAt(0).toUpperCase() + optimizingSection.slice(1) : ''}
                 </h3>
                 <button
                   onClick={cancelOptimization}
@@ -2214,12 +2408,16 @@ export default function Home() {
                     {isOptimizing ? (
                       <>
                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                        Optimizing...
+                        {bulkOptimizationProgress ? (
+                          `Optimizing ${bulkOptimizationProgress.current}/${bulkOptimizationProgress.total}...`
+                        ) : (
+                          'Optimizing...'
+                        )}
                       </>
                     ) : (
                       <>
                         <Target className="w-4 h-4" />
-                        Optimize
+                        {optimizingItemIndex !== null ? 'Optimize This' : 'Optimize All'}
                       </>
                     )}
                   </button>
