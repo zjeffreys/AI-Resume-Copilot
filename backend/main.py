@@ -134,6 +134,7 @@ class ATSAnalysisResponse(BaseModel):
     missing_keywords: list[str]
     experience_gaps: list[str]
     strengths: list[str]
+    removable_words: list[str]  # Words/phrases that can be removed to improve ATS compatibility
     message: str
 
 # New models for section optimization
@@ -454,6 +455,8 @@ def analyze_resume_with_ats(resume_data: ResumeData, job_description: str) -> AT
         Job Description:
         {job_description}
 
+        IMPORTANT: Be strict and realistic in your analysis. Real ATS systems are unforgiving. Score conservatively and identify real weaknesses.
+
         Please provide a comprehensive ATS analysis in the following JSON format:
 
         {{
@@ -489,17 +492,23 @@ def analyze_resume_with_ats(resume_data: ResumeData, job_description: str) -> AT
             "matched_keywords": ["Python", "Machine Learning", "Data Analysis"],
             "missing_keywords": ["TensorFlow", "AWS", "Docker"],
             "experience_gaps": ["Cloud computing experience", "Team leadership"],
-            "strengths": ["Strong technical skills", "Relevant education", "Project experience"]
+            "strengths": ["Strong technical skills", "Relevant education", "Project experience"],
+            "removable_words": ["passionate about", "detail-oriented", "team player", "hard worker", "excellent communication skills"]
         }}
 
-        Analysis Guidelines:
-        1. Score each category 0-100 based on relevance and match quality
-        2. Identify specific keywords that match and are missing
-        3. Highlight experience gaps that could be addressed
-        4. Provide actionable recommendations with priority levels
-        5. Focus on both technical and soft skills
-        6. Consider industry-specific requirements
-        7. Assess cultural fit and career progression potential
+        STRICT Analysis Guidelines:
+        1. Score conservatively (0-100) - real ATS systems are harsh
+        2. Be unforgiving about missing required skills/qualifications
+        3. Identify specific keywords that match and are missing from job description
+        4. Highlight experience gaps that would cause immediate rejection
+        5. Provide actionable recommendations with priority levels
+        6. Focus on exact keyword matches - partial matches score lower
+        7. Consider industry-specific requirements and certifications
+        8. Identify filler words/phrases that add no value and should be removed
+        9. Flag outdated or irrelevant skills/technologies
+        10. Assess if candidate meets minimum requirements (education, experience years)
+        11. Be critical of vague descriptions and generic statements
+        12. Penalize heavily for missing must-have qualifications
 
         Return only the JSON object, no additional text or formatting.
         """
@@ -563,6 +572,7 @@ def analyze_resume_with_ats(resume_data: ResumeData, job_description: str) -> AT
             missing_keywords=parsed_data["missing_keywords"],
             experience_gaps=parsed_data["experience_gaps"],
             strengths=parsed_data["strengths"],
+            removable_words=parsed_data["removable_words"],
             message="ATS analysis completed successfully"
         )
         

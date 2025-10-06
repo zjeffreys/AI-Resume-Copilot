@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, FileText, Download, Target, Edit2, Save, X } from 'lucide-react';
+import { Upload, FileText, Download, Target, Edit2, Save, X, Info } from 'lucide-react';
 
 interface ResumeData {
   name: string;
@@ -121,6 +121,9 @@ export default function Home() {
   const [optimizationResult, setOptimizationResult] = useState<SectionOptimizationResponse | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
   const [showOptimizationModal, setShowOptimizationModal] = useState(false);
+  const [showATSInfoModal, setShowATSInfoModal] = useState(false);
+  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
+  const [previousSectionData, setPreviousSectionData] = useState<any>(null);
 
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -309,7 +312,22 @@ export default function Home() {
     setEditingData(null);
   };
 
-  const startOptimization = (section: string) => {
+  const startOptimization = (section: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!resumeData) return;
+    
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    
+    // Position popup so its top-left corner touches the top-right corner of the button
+    setPopupPosition({
+      top: rect.top,
+      left: rect.right, // No gap - corner touching
+    });
+    
+    // Store current section data for undo
+    const currentData = resumeData[section as keyof ResumeData];
+    setPreviousSectionData(currentData);
+    
     setOptimizingSection(section);
     setCustomPrompt('');
     setOptimizationResult(null);
@@ -321,6 +339,7 @@ export default function Home() {
     setCustomPrompt('');
     setOptimizationResult(null);
     setShowOptimizationModal(false);
+    setPreviousSectionData(null);
   };
 
   const optimizeSection = async () => {
@@ -332,41 +351,52 @@ export default function Home() {
     setIsOptimizing(true);
     
     try {
-      // Get current section data
+      // Get current section data and wrap in appropriate format for backend (expects dict)
       let sectionData: any;
       switch (optimizingSection) {
         case 'summary':
-          sectionData = resumeData.summary;
+          // Wrap string in object for backend
+          sectionData = { content: resumeData.summary };
           break;
         case 'skills':
-          sectionData = resumeData.skills;
+          // Wrap array in object for backend
+          sectionData = { skills: resumeData.skills };
           break;
         case 'experience':
-          sectionData = resumeData.experience;
+          // Wrap array in object for backend
+          sectionData = { experience: resumeData.experience };
           break;
         case 'education':
-          sectionData = resumeData.education;
+          // Wrap array in object for backend
+          sectionData = { education: resumeData.education };
           break;
         case 'projects':
-          sectionData = resumeData.projects;
+          // Wrap array in object for backend
+          sectionData = { projects: resumeData.projects };
           break;
         case 'publications':
-          sectionData = resumeData.publications;
+          // Wrap array in object for backend
+          sectionData = { publications: resumeData.publications };
           break;
         case 'certifications':
-          sectionData = resumeData.certifications;
+          // Wrap array in object for backend
+          sectionData = { certifications: resumeData.certifications };
           break;
         case 'volunteer_experience':
-          sectionData = resumeData.volunteer_experience;
+          // Wrap array in object for backend
+          sectionData = { volunteer_experience: resumeData.volunteer_experience };
           break;
         case 'awards':
-          sectionData = resumeData.awards;
+          // Wrap array in object for backend
+          sectionData = { awards: resumeData.awards };
           break;
         case 'languages':
-          sectionData = resumeData.languages;
+          // Wrap array in object for backend
+          sectionData = { languages: resumeData.languages };
           break;
         case 'references':
-          sectionData = resumeData.references;
+          // Wrap array in object for backend
+          sectionData = { references: resumeData.references };
           break;
         default:
           throw new Error('Invalid section');
@@ -392,6 +422,9 @@ export default function Home() {
 
       const result = await response.json();
       setOptimizationResult(result);
+      
+      // Auto-apply the optimization
+      applyOptimizationWithResult(result);
     } catch (error) {
       console.error('Error optimizing section:', error);
       alert('Failed to optimize section. Please try again.');
@@ -400,44 +433,100 @@ export default function Home() {
     }
   };
 
-  const applyOptimization = () => {
-    if (!resumeData || !optimizationResult || !optimizingSection) return;
+  const applyOptimizationWithResult = (result: SectionOptimizationResponse) => {
+    if (!resumeData || !optimizingSection) return;
 
     const updatedResumeData = { ...resumeData };
     
     switch (optimizingSection) {
       case 'summary':
-        updatedResumeData.summary = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.summary = result.optimized_section.content || result.optimized_section;
         break;
       case 'skills':
-        updatedResumeData.skills = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.skills = result.optimized_section.skills || result.optimized_section;
         break;
       case 'experience':
-        updatedResumeData.experience = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.experience = result.optimized_section.experience || result.optimized_section;
         break;
       case 'education':
-        updatedResumeData.education = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.education = result.optimized_section.education || result.optimized_section;
         break;
       case 'projects':
-        updatedResumeData.projects = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.projects = result.optimized_section.projects || result.optimized_section;
         break;
       case 'publications':
-        updatedResumeData.publications = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.publications = result.optimized_section.publications || result.optimized_section;
         break;
       case 'certifications':
-        updatedResumeData.certifications = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.certifications = result.optimized_section.certifications || result.optimized_section;
         break;
       case 'volunteer_experience':
-        updatedResumeData.volunteer_experience = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.volunteer_experience = result.optimized_section.volunteer_experience || result.optimized_section;
         break;
       case 'awards':
-        updatedResumeData.awards = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.awards = result.optimized_section.awards || result.optimized_section;
         break;
       case 'languages':
-        updatedResumeData.languages = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.languages = result.optimized_section.languages || result.optimized_section;
         break;
       case 'references':
-        updatedResumeData.references = optimizationResult.optimized_section;
+        // Unwrap from object format
+        updatedResumeData.references = result.optimized_section.references || result.optimized_section;
+        break;
+    }
+
+    setResumeData(updatedResumeData);
+  };
+
+  const undoOptimization = () => {
+    if (!resumeData || !optimizingSection || !previousSectionData) return;
+
+    const updatedResumeData = { ...resumeData };
+    
+    // Restore previous data
+    switch (optimizingSection) {
+      case 'summary':
+        updatedResumeData.summary = previousSectionData as string;
+        break;
+      case 'skills':
+        updatedResumeData.skills = previousSectionData as string[];
+        break;
+      case 'experience':
+        updatedResumeData.experience = previousSectionData as any[];
+        break;
+      case 'education':
+        updatedResumeData.education = previousSectionData as any[];
+        break;
+      case 'projects':
+        updatedResumeData.projects = previousSectionData as any[];
+        break;
+      case 'publications':
+        updatedResumeData.publications = previousSectionData as any[];
+        break;
+      case 'certifications':
+        updatedResumeData.certifications = previousSectionData as any[];
+        break;
+      case 'volunteer_experience':
+        updatedResumeData.volunteer_experience = previousSectionData as any[];
+        break;
+      case 'awards':
+        updatedResumeData.awards = previousSectionData as string[];
+        break;
+      case 'languages':
+        updatedResumeData.languages = previousSectionData as string[];
+        break;
+      case 'references':
+        updatedResumeData.references = previousSectionData as any[];
         break;
     }
 
@@ -446,6 +535,7 @@ export default function Home() {
     setOptimizationResult(null);
     setOptimizingSection(null);
     setCustomPrompt('');
+    setPreviousSectionData(null);
   };
 
   const generateResumeText = (data: ResumeData) => {
@@ -634,6 +724,30 @@ export default function Home() {
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             Upload your resume, get insights, and optimize it for each job application with AI-powered suggestions.
           </p>
+          
+          {/* ATS Disclaimer */}
+          <div className="mt-6 max-w-2xl mx-auto">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start">
+                  <Info className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      <strong>Note:</strong> This tool simulates ATS (Applicant Tracking System) behavior for educational purposes. 
+                      Learn how real ATS systems work to better understand the job application process.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowATSInfoModal(true)}
+                  className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium py-2 px-3 rounded-md transition-colors flex items-center whitespace-nowrap"
+                >
+                  <Info className="w-4 h-4 mr-1" />
+                  Learn More
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Two Panel Layout */}
@@ -835,7 +949,7 @@ export default function Home() {
                       </h2>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => startOptimization('summary')}
+                          onClick={(e) => startOptimization('summary', e)}
                           className="text-gray-500 hover:text-green-600 transition-colors"
                           title="Optimize summary with AI"
                         >
@@ -891,7 +1005,7 @@ export default function Home() {
                       </h2>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => startOptimization('skills')}
+                          onClick={(e) => startOptimization('skills', e)}
                           className="text-gray-500 hover:text-green-600 transition-colors"
                           title="Optimize skills with AI"
                         >
@@ -966,7 +1080,7 @@ export default function Home() {
                       </h2>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => startOptimization('experience')}
+                          onClick={(e) => startOptimization('experience', e)}
                           className="text-gray-500 hover:text-green-600 transition-colors"
                           title="Optimize experience with AI"
                         >
@@ -1093,7 +1207,7 @@ export default function Home() {
                       </h2>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => startOptimization('education')}
+                          onClick={(e) => startOptimization('education', e)}
                           className="text-gray-500 hover:text-green-600 transition-colors"
                           title="Optimize education with AI"
                         >
@@ -1234,7 +1348,7 @@ export default function Home() {
                         </h2>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => startOptimization('projects')}
+                            onClick={(e) => startOptimization('projects', e)}
                             className="text-gray-500 hover:text-green-600 transition-colors"
                             title="Optimize projects with AI"
                           >
@@ -2049,100 +2163,230 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Optimization Modal */}
-        {showOptimizationModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Optimize {optimizingSection ? optimizingSection.charAt(0).toUpperCase() + optimizingSection.slice(1) : ''} Section
+        {/* Optimization Popup */}
+        {showOptimizationModal && popupPosition && (
+          <>
+            {/* Backdrop - click to close */}
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={cancelOptimization}
+            />
+            <div 
+              className="fixed bg-white dark:bg-gray-800 rounded-lg p-4 w-80 shadow-2xl border border-gray-200 dark:border-gray-700 z-50 max-h-[calc(100vh-6rem)] overflow-y-auto mb-8"
+              style={{
+                top: `${popupPosition.top}px`,
+                left: `${popupPosition.left}px`,
+                marginBottom: '2rem',
+              }}
+            >
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Optimize {optimizingSection ? optimizingSection.charAt(0).toUpperCase() + optimizingSection.slice(1) : ''}
                 </h3>
                 <button
                   onClick={cancelOptimization}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                     Custom Instructions (Optional)
                   </label>
                   <textarea
                     value={customPrompt}
                     onChange={(e) => setCustomPrompt(e.target.value)}
-                    placeholder="Add specific instructions for the AI optimization (e.g., 'Focus on leadership skills', 'Emphasize technical achievements', 'Make it more concise')"
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    rows={3}
+                    placeholder="e.g., 'Focus on leadership', 'Emphasize technical skills'"
+                    className="w-full p-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    rows={2}
                   />
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <button
                     onClick={optimizeSection}
                     disabled={isOptimizing}
-                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     {isOptimizing ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                         Optimizing...
                       </>
                     ) : (
                       <>
                         <Target className="w-4 h-4" />
-                        Optimize Section
+                        Optimize
                       </>
                     )}
                   </button>
                   <button
                     onClick={cancelOptimization}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     Cancel
                   </button>
                 </div>
 
                 {optimizationResult && (
-                  <div className="mt-6 space-y-4">
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                      <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">
-                        Optimization Complete!
+                  <div className="mt-4 space-y-3 pb-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                      <h4 className="font-semibold text-sm text-green-800 dark:text-green-200 mb-1">
+                        ✓ Changes Applied!
                       </h4>
-                      <p className="text-green-700 dark:text-green-300 text-sm">
+                      <p className="text-green-700 dark:text-green-300 text-xs">
                         {optimizationResult.explanation}
                       </p>
                     </div>
 
                     <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                      <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-1.5">
                         Changes Made:
                       </h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                      <ul className="list-disc list-inside space-y-0.5 text-xs text-gray-700 dark:text-gray-300">
                         {optimizationResult.changes_made.map((change, index) => (
                           <li key={index}>{change}</li>
                         ))}
                       </ul>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                       <button
-                        onClick={applyOptimization}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                        onClick={undoOptimization}
+                        className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-center gap-1"
                       >
-                        Apply Optimization
+                        <X className="w-3 h-3" />
+                        Undo Changes
                       </button>
                       <button
-                        onClick={() => setOptimizationResult(null)}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        onClick={cancelOptimization}
+                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
-                        Try Again
+                        Done
                       </button>
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ATS Information Modal */}
+        {showATSInfoModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  What Real ATS Actually Does
+                </h3>
+                <button
+                  onClick={() => setShowATSInfoModal(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                    What is an ATS?
+                  </h4>
+                  <p className="text-blue-700 dark:text-blue-300 text-sm">
+                    An ATS is basically a searchable database + workflow management system. 
+                    It's like a big filing cabinet that helps companies organize job applications.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-4">
+                    Here's the real process:
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-0.5">
+                        1
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-gray-900 dark:text-white">Collection & Storage</h5>
+                        <p className="text-gray-600 dark:text-gray-300 text-sm">
+                          Resumes come in → ATS reads them → stores the information in a database. 
+                          It's just organizing applications, not comparing them to each other. 
+                          Think of it like putting all the resumes in digital folders.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-0.5">
+                        2
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-gray-900 dark:text-white">Recruiter-Driven Search (This is the key part!)</h5>
+                        <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">
+                          The ATS doesn't automatically "choose" candidates. Instead:
+                        </p>
+                        <p className="text-gray-600 dark:text-gray-300 text-sm">
+                          Recruiter logs in → Searches/filters the database like:
+                        </p>
+                        <ul className="text-gray-600 dark:text-gray-300 text-sm mt-2 ml-4 space-y-1">
+                          <li>• "Show me candidates with 'Python' AND 'AWS'"</li>
+                          <li>• "Filter: Bachelor's degree required"</li>
+                          <li>• "Filter: 5+ years experience"</li>
+                          <li>• "Location: Seattle"</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-0.5">
+                        3
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-gray-900 dark:text-white">Manual Review</h5>
+                        <p className="text-gray-600 dark:text-gray-300 text-sm">
+                          Recruiter gets a list of matching candidates → Human reads the resumes that passed filters → 
+                          Human writes notes in the system → Human decides who to interview. 
+                          It's always a real person making the final decision!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">
+                    💡 The Big Secret
+                  </h4>
+                  <p className="text-green-700 dark:text-green-300 text-sm">
+                    ATS systems are just fancy filing cabinets! A human recruiter still has to search for you and read your resume. 
+                    Your goal is to make sure you have the right keywords so recruiters can find you when they search.
+                  </p>
+                </div>
+
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <h4 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                    Important Note
+                  </h4>
+                  <p className="text-yellow-700 dark:text-yellow-300 text-sm">
+                    This AI Resume Copilot simulates ATS behavior for educational purposes only. 
+                    Real ATS systems work differently at each company, but the basic idea is always the same: 
+                    it's a database that helps recruiters find the right people for the job.
+                  </p>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowATSInfoModal(false)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  >
+                    Got it!
+                  </button>
+                </div>
               </div>
             </div>
           </div>

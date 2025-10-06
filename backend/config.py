@@ -12,7 +12,7 @@ class Config:
     
     # Resume Parsing Configuration
     RESUME_PARSING = {
-        "model": "gpt-3.5-turbo",
+        "model": "gpt-4.1-mini",
         "max_tokens": 2000,
         "temperature": 0.1
     }
