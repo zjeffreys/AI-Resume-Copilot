@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, FileText, Download, Target, Sparkles } from 'lucide-react';
+import { Upload, FileText, Download, Target, Edit2, Save, X } from 'lucide-react';
 
 interface ResumeData {
   name: string;
@@ -99,11 +99,12 @@ interface ATSAnalysisResponse {
 export default function Home() {
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
   const [jobDescription, setJobDescription] = useState('');
-  const [optimizedResume, setOptimizedResume] = useState<string>('');
   const [atsAnalysis, setAtsAnalysis] = useState<ATSAnalysisResponse | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'upload' | 'display'>('upload');
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -205,53 +206,92 @@ export default function Home() {
     }
   };
 
-  const optimizeResume = () => {
-    if (!resumeData || !jobDescription) return;
+  const startEditing = (section: string, data: any) => {
+    setEditingSection(section);
+    setEditingData(data);
+  };
+
+  const cancelEditing = () => {
+    setEditingSection(null);
+    setEditingData(null);
+  };
+
+  const saveEditing = () => {
+    if (!resumeData || !editingSection || !editingData) return;
+
+    const updatedResumeData = { ...resumeData };
     
-    setIsProcessing(true);
-    setTimeout(() => {
-      // Mock optimization logic
-      const optimized = `OPTIMIZED RESUME FOR TARGET POSITION
+    switch (editingSection) {
+      case 'summary':
+        updatedResumeData.summary = editingData;
+        break;
+      case 'skills':
+        // Convert string to array when saving
+        updatedResumeData.skills = typeof editingData === 'string' 
+          ? editingData.split(',').map(s => s.trim()).filter(s => s)
+          : editingData;
+        break;
+      case 'experience':
+        // Process experience data to handle description strings
+        const processedExperience = editingData.map((exp: any) => ({
+          ...exp,
+          description: typeof exp.description === 'string' 
+            ? exp.description.split('\n').filter((line: string) => line.trim())
+            : exp.description
+        }));
+        updatedResumeData.experience = processedExperience;
+        break;
+      case 'education':
+        updatedResumeData.education = editingData;
+        break;
+      case 'projects':
+        // Process projects data to handle description strings
+        const processedProjects = editingData.map((project: any) => ({
+          ...project,
+          description: typeof project.description === 'string' 
+            ? project.description.split('\n').filter((line: string) => line.trim())
+            : project.description
+        }));
+        updatedResumeData.projects = processedProjects;
+        break;
+      case 'publications':
+        updatedResumeData.publications = editingData;
+        break;
+      case 'certifications':
+        updatedResumeData.certifications = editingData;
+        break;
+      case 'volunteer_experience':
+        updatedResumeData.volunteer_experience = editingData;
+        break;
+      case 'awards':
+        // Convert string to array when saving
+        updatedResumeData.awards = typeof editingData === 'string' 
+          ? editingData.split('\n').filter(line => line.trim())
+          : editingData;
+        break;
+      case 'languages':
+        // Convert string to array when saving
+        updatedResumeData.languages = typeof editingData === 'string' 
+          ? editingData.split(',').map(s => s.trim()).filter(s => s)
+          : editingData;
+        break;
+      case 'references':
+        updatedResumeData.references = editingData;
+        break;
+      case 'contact':
+        updatedResumeData.name = editingData.name;
+        updatedResumeData.email = editingData.email;
+        updatedResumeData.phone = editingData.phone;
+        updatedResumeData.location = editingData.location;
+        updatedResumeData.github_profile = editingData.github_profile;
+        updatedResumeData.linkedin_profile = editingData.linkedin_profile;
+        updatedResumeData.website = editingData.website;
+        break;
+    }
 
-${resumeData.name}
-${resumeData.email} | ${resumeData.phone}
-
-PROFESSIONAL SUMMARY
-${resumeData.summary}
-
-KEY ACHIEVEMENTS
-• Led development of microservices architecture serving 1M+ users
-• Implemented CI/CD pipelines reducing deployment time by 60%
-• Mentored 3 junior developers, improving team productivity by 40%
-
-TECHNICAL SKILLS
-${resumeData.skills.join(' • ')}
-
-PROFESSIONAL EXPERIENCE
-
-Senior Software Engineer | Tech Corp | 2022 - Present
-• Architected and developed scalable microservices using Node.js and React
-• Led a team of 5 developers in building high-performance applications
-• Implemented automated testing and deployment pipelines
-• Reduced system response time by 50% through optimization
-
-Full Stack Developer | StartupXYZ | 2020 - 2022
-• Developed responsive web applications serving 100K+ daily users
-• Collaborated with product and design teams to deliver user-centric features
-• Implemented real-time data processing using WebSocket technologies
-
-EDUCATION
-${resumeData.education[0].degree} | ${resumeData.education[0].institution} | ${resumeData.education[0].year}
-
-OPTIMIZATION NOTES:
-- Emphasized leadership and team management skills
-- Highlighted quantifiable achievements with metrics
-- Reordered skills to match job requirements
-- Enhanced action verbs for stronger impact`;
-
-      setOptimizedResume(optimized);
-      setIsProcessing(false);
-    }, 3000);
+    setResumeData(updatedResumeData);
+    setEditingSection(null);
+    setEditingData(null);
   };
 
   const generateResumeText = (data: ResumeData) => {
@@ -428,15 +468,6 @@ OPTIMIZATION NOTES:
     }
   };
 
-  const downloadResume = () => {
-    const element = document.createElement('a');
-    const file = new Blob([optimizedResume], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = 'optimized-resume.txt';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -536,120 +567,584 @@ OPTIMIZATION NOTES:
 
                   {/* Header */}
                   <div className="text-center mb-8 border-b border-gray-200 dark:border-gray-300 pb-6">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-900 mb-3">{resumeData.name.toUpperCase()}</h1>
-                    <div className="text-gray-700 dark:text-gray-700 text-lg">
-                      <div className="flex justify-center items-center gap-2 flex-wrap">
-                        {resumeData.location && <span>{resumeData.location}</span>}
-                        {resumeData.location && resumeData.phone && <span>•</span>}
-                        {resumeData.phone && <span>{resumeData.phone}</span>}
-                        {resumeData.phone && resumeData.email && <span>•</span>}
-                        {resumeData.email && <span>{resumeData.email}</span>}
-                        {resumeData.email && resumeData.linkedin_profile && <span>•</span>}
-                        {resumeData.linkedin_profile && (
-                          <a href={resumeData.linkedin_profile} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                            {resumeData.linkedin_profile}
-                          </a>
-                        )}
-                      </div>
+                    <div className="flex justify-center items-center gap-2 mb-3">
+                      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-900">{resumeData.name.toUpperCase()}</h1>
+                      <button
+                        onClick={() => startEditing('contact', {
+                          name: resumeData.name,
+                          email: resumeData.email,
+                          phone: resumeData.phone,
+                          location: resumeData.location,
+                          github_profile: resumeData.github_profile,
+                          linkedin_profile: resumeData.linkedin_profile,
+                          website: resumeData.website
+                        })}
+                        className="text-gray-500 hover:text-blue-600 transition-colors"
+                        title="Edit contact information"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                     </div>
+                    
+                    {editingSection === 'contact' ? (
+                      <div className="space-y-3 max-w-md mx-auto">
+                        <input
+                          type="text"
+                          value={editingData.name}
+                          onChange={(e) => setEditingData({...editingData, name: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                          placeholder="Full Name"
+                        />
+                        <input
+                          type="email"
+                          value={editingData.email}
+                          onChange={(e) => setEditingData({...editingData, email: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                          placeholder="Email"
+                        />
+                        <input
+                          type="text"
+                          value={editingData.phone}
+                          onChange={(e) => setEditingData({...editingData, phone: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                          placeholder="Phone"
+                        />
+                        <input
+                          type="text"
+                          value={editingData.location}
+                          onChange={(e) => setEditingData({...editingData, location: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                          placeholder="Location"
+                        />
+                        <input
+                          type="text"
+                          value={editingData.github_profile}
+                          onChange={(e) => setEditingData({...editingData, github_profile: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                          placeholder="GitHub Profile"
+                        />
+                        <input
+                          type="text"
+                          value={editingData.linkedin_profile}
+                          onChange={(e) => setEditingData({...editingData, linkedin_profile: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                          placeholder="LinkedIn Profile"
+                        />
+                        <input
+                          type="text"
+                          value={editingData.website}
+                          onChange={(e) => setEditingData({...editingData, website: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                          placeholder="Website"
+                        />
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={saveEditing}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <Save className="w-4 h-4" />
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-gray-700 dark:text-gray-700 text-lg">
+                        <div className="flex justify-center items-center gap-2 flex-wrap">
+                          {resumeData.location && <span>{resumeData.location}</span>}
+                          {resumeData.location && resumeData.phone && <span>•</span>}
+                          {resumeData.phone && <span>{resumeData.phone}</span>}
+                          {resumeData.phone && resumeData.email && <span>•</span>}
+                          {resumeData.email && <span>{resumeData.email}</span>}
+                          {resumeData.email && resumeData.linkedin_profile && <span>•</span>}
+                          {resumeData.linkedin_profile && (
+                            <a href={resumeData.linkedin_profile} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                              {resumeData.linkedin_profile}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Professional Summary */}
                   <div className="mb-8">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
-                      SUMMARY
-                    </h2>
-                    <p className="text-gray-800 dark:text-gray-800 leading-relaxed">
-                      {resumeData.summary}
-                    </p>
+                    <div className="flex justify-between items-center mb-3">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
+                        SUMMARY
+                      </h2>
+                      <button
+                        onClick={() => startEditing('summary', resumeData.summary)}
+                        className="text-gray-500 hover:text-blue-600 transition-colors"
+                        title="Edit summary"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    {editingSection === 'summary' ? (
+                      <div className="space-y-3">
+                        <textarea
+                          value={editingData}
+                          onChange={(e) => setEditingData(e.target.value)}
+                          className="w-full p-3 border border-gray-300 rounded-lg h-32 resize-none text-gray-900 bg-white"
+                          placeholder="Professional summary..."
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={saveEditing}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <Save className="w-4 h-4" />
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-800 dark:text-gray-800 leading-relaxed">
+                        {resumeData.summary}
+                      </p>
+                    )}
                   </div>
 
                   {/* Skills & Other */}
                   <div className="mb-8">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
-                      SKILLS & OTHER
-                    </h2>
-                    <div className="space-y-3">
-                      <div>
-                        <span className="font-bold text-gray-900 dark:text-gray-900">Skills: </span>
-                        <span className="text-gray-800 dark:text-gray-800">{resumeData.skills.join(', ')}</span>
-                      </div>
-                      {resumeData.volunteer_experience && resumeData.volunteer_experience.length > 0 && (
-                        <div>
-                          <span className="font-bold text-gray-900 dark:text-gray-900">Volunteering: </span>
-                          <span className="text-gray-800 dark:text-gray-800">
-                            {resumeData.volunteer_experience.map(vol => 
-                              `${vol.position} at ${vol.organization} (${vol.duration})`
-                            ).join(', ')}
-                          </span>
-                        </div>
-                      )}
+                    <div className="flex justify-between items-center mb-3">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
+                        SKILLS & OTHER
+                      </h2>
+                      <button
+                        onClick={() => startEditing('skills', resumeData.skills)}
+                        className="text-gray-500 hover:text-blue-600 transition-colors"
+                        title="Edit skills"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                     </div>
+                    
+                    {editingSection === 'skills' ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Skills (comma-separated)</label>
+                          <textarea
+                            value={Array.isArray(editingData) ? editingData.join(', ') : editingData}
+                            onChange={(e) => {
+                              // Keep the raw text for editing, only split when saving
+                              setEditingData(e.target.value);
+                            }}
+                            className="w-full p-3 border border-gray-300 rounded-lg h-24 resize-none text-gray-900 bg-white"
+                            placeholder="Python, JavaScript, React, Node.js..."
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={saveEditing}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <Save className="w-4 h-4" />
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <span className="font-bold text-gray-900 dark:text-gray-900">Skills: </span>
+                          <span className="text-gray-800 dark:text-gray-800">{resumeData.skills.join(', ')}</span>
+                        </div>
+                        {resumeData.volunteer_experience && resumeData.volunteer_experience.length > 0 && (
+                          <div>
+                            <span className="font-bold text-gray-900 dark:text-gray-900">Volunteering: </span>
+                            <span className="text-gray-800 dark:text-gray-800">
+                              {resumeData.volunteer_experience.map(vol => 
+                                `${vol.position} at ${vol.organization} (${vol.duration})`
+                              ).join(', ')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Experience */}
                   <div className="mb-8">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
-                      PROFESSIONAL EXPERIENCE
-                    </h2>
-                    <div className="space-y-6">
-                      {resumeData.experience.map((exp, index) => (
-                        <div key={index}>
-                          <div className="flex justify-between items-start mb-1">
-                            <div>
-                              <span className="font-bold text-gray-900 dark:text-gray-900">{exp.company}</span>
-                              <span className="text-gray-800 dark:text-gray-800 ml-1">{resumeData.location}</span>
-                            </div>
-                            <span className="text-gray-700 dark:text-gray-700 font-medium">{exp.duration}</span>
-                          </div>
-                          <p className="text-gray-800 dark:text-gray-800 mb-2 ml-4">{exp.position}</p>
-                          <ul className="text-gray-800 dark:text-gray-800 leading-relaxed list-disc list-inside ml-4">
-                            {exp.description.map((bullet, bulletIndex) => (
-                              <li key={bulletIndex} className="mb-1">{bullet}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
+                    <div className="flex justify-between items-center mb-3">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
+                        PROFESSIONAL EXPERIENCE
+                      </h2>
+                      <button
+                        onClick={() => startEditing('experience', resumeData.experience)}
+                        className="text-gray-500 hover:text-blue-600 transition-colors"
+                        title="Edit experience"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                     </div>
+                    
+                    {editingSection === 'experience' ? (
+                      <div className="space-y-4">
+                        {editingData.map((exp: any, index: number) => (
+                          <div key={index} className="border border-gray-300 rounded-lg p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                              <input
+                                type="text"
+                                value={exp.company}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].company = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                placeholder="Company"
+                              />
+                              <input
+                                type="text"
+                                value={exp.duration}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].duration = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                placeholder="Duration (e.g., 2020-2023)"
+                              />
+                            </div>
+                            <input
+                              type="text"
+                              value={exp.position}
+                              onChange={(e) => {
+                                const newData = [...editingData];
+                                newData[index].position = e.target.value;
+                                setEditingData(newData);
+                              }}
+                              className="w-full p-2 border border-gray-300 rounded-lg mb-3 text-gray-900 bg-white"
+                              placeholder="Position/Title"
+                            />
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Description (one per line)</label>
+                              <textarea
+                                value={Array.isArray(exp.description) ? exp.description.join('\n') : exp.description}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].description = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded-lg h-24 resize-none text-gray-900 bg-white"
+                                placeholder="• Led development of key features&#10;• Improved performance by 50%&#10;• Mentored junior developers"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const newData = [...editingData, { company: '', position: '', duration: '', description: [] }];
+                              setEditingData(newData);
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                          >
+                            Add Experience
+                          </button>
+                          <button
+                            onClick={saveEditing}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <Save className="w-4 h-4" />
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {resumeData.experience.map((exp, index) => (
+                          <div key={index}>
+                            <div className="flex justify-between items-start mb-1">
+                              <div>
+                                <span className="font-bold text-gray-900 dark:text-gray-900">{exp.company}</span>
+                                <span className="text-gray-800 dark:text-gray-800 ml-1">{resumeData.location}</span>
+                              </div>
+                              <span className="text-gray-700 dark:text-gray-700 font-medium">{exp.duration}</span>
+                            </div>
+                            <p className="text-gray-800 dark:text-gray-800 mb-2 ml-4">{exp.position}</p>
+                            <ul className="text-gray-800 dark:text-gray-800 leading-relaxed list-disc list-inside ml-4">
+                              {exp.description.map((bullet, bulletIndex) => (
+                                <li key={bulletIndex} className="mb-1">{bullet}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Education */}
                   <div className="mb-8">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
-                      EDUCATION
-                    </h2>
-                    <div className="space-y-4">
-                      {resumeData.education.map((edu, index) => (
-                        <div key={index}>
-                          <div className="flex justify-between items-start mb-1">
-                            <div>
-                              <span className="font-bold text-gray-900 dark:text-gray-900">{edu.institution}</span>
-                              <span className="text-gray-800 dark:text-gray-800 ml-1">{resumeData.location}</span>
-                            </div>
-                            <span className="text-gray-700 dark:text-gray-700 font-medium">{edu.year}</span>
-                          </div>
-                          <p className="text-gray-800 dark:text-gray-800 mb-2 ml-4">{edu.degree}</p>
-                          {(edu.gpa || edu.relevant_coursework) && (
-                            <ul className="text-gray-800 dark:text-gray-800 leading-relaxed list-disc list-inside ml-4">
-                              {edu.gpa && <li className="mb-1">Awards: {edu.gpa}</li>}
-                              {edu.relevant_coursework && <li className="mb-1">{edu.relevant_coursework}</li>}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
+                    <div className="flex justify-between items-center mb-3">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
+                        EDUCATION
+                      </h2>
+                      <button
+                        onClick={() => startEditing('education', resumeData.education)}
+                        className="text-gray-500 hover:text-blue-600 transition-colors"
+                        title="Edit education"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                     </div>
+                    
+                    {editingSection === 'education' ? (
+                      <div className="space-y-4">
+                        {editingData.map((edu: any, index: number) => (
+                          <div key={index} className="border border-gray-300 rounded-lg p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                              <input
+                                type="text"
+                                value={edu.institution}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].institution = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                placeholder="Institution"
+                              />
+                              <input
+                                type="text"
+                                value={edu.year}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].year = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                placeholder="Year"
+                              />
+                            </div>
+                            <input
+                              type="text"
+                              value={edu.degree}
+                              onChange={(e) => {
+                                const newData = [...editingData];
+                                newData[index].degree = e.target.value;
+                                setEditingData(newData);
+                              }}
+                              className="w-full p-2 border border-gray-300 rounded-lg mb-3 text-gray-900 bg-white"
+                              placeholder="Degree"
+                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <input
+                                type="text"
+                                value={edu.gpa || ''}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].gpa = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                placeholder="GPA/Awards"
+                              />
+                              <input
+                                type="text"
+                                value={edu.relevant_coursework || ''}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].relevant_coursework = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                placeholder="Relevant Coursework"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const newData = [...editingData, { institution: '', degree: '', year: '', gpa: '', relevant_coursework: '' }];
+                              setEditingData(newData);
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                          >
+                            Add Education
+                          </button>
+                          <button
+                            onClick={saveEditing}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <Save className="w-4 h-4" />
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {resumeData.education.map((edu, index) => (
+                          <div key={index}>
+                            <div className="flex justify-between items-start mb-1">
+                              <div>
+                                <span className="font-bold text-gray-900 dark:text-gray-900">{edu.institution}</span>
+                                <span className="text-gray-800 dark:text-gray-800 ml-1">{resumeData.location}</span>
+                              </div>
+                              <span className="text-gray-700 dark:text-gray-700 font-medium">{edu.year}</span>
+                            </div>
+                            <p className="text-gray-800 dark:text-gray-800 mb-2 ml-4">{edu.degree}</p>
+                            {(edu.gpa || edu.relevant_coursework) && (
+                              <ul className="text-gray-800 dark:text-gray-800 leading-relaxed list-disc list-inside ml-4">
+                                {edu.gpa && <li className="mb-1">Awards: {edu.gpa}</li>}
+                                {edu.relevant_coursework && <li className="mb-1">{edu.relevant_coursework}</li>}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
 
                   {/* Projects (including Publications) */}
                   {(resumeData.projects && resumeData.projects.length > 0) || (resumeData.publications && resumeData.publications.length > 0) ? (
                     <div className="mb-8">
-                      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
-                        PROJECTS
-                      </h2>
-                      <div className="space-y-4">
-                        {/* Regular Projects with corresponding publications */}
-                        {resumeData.projects && resumeData.projects.map((project, index) => {
+                      <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
+                          PROJECTS
+                        </h2>
+                        <button
+                          onClick={() => startEditing('projects', resumeData.projects)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit projects"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {editingSection === 'projects' ? (
+                        <div className="space-y-4">
+                          {editingData.map((project: any, index: number) => (
+                            <div key={index} className="border border-gray-300 rounded-lg p-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                <input
+                                  type="text"
+                                  value={project.name}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].name = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Project Name"
+                                />
+                                <input
+                                  type="text"
+                                  value={project.duration || ''}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].duration = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Duration"
+                                />
+                              </div>
+                              <input
+                                type="text"
+                                value={project.technologies || ''}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].technologies = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded-lg mb-3 text-gray-900 bg-white"
+                                placeholder="Technologies Used"
+                              />
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Description (one per line)</label>
+                                <textarea
+                                  value={Array.isArray(project.description) ? project.description.join('\n') : project.description}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].description = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="w-full p-2 border border-gray-300 rounded-lg h-24 resize-none text-gray-900 bg-white"
+                                  placeholder="• Built a web application&#10;• Implemented user authentication&#10;• Deployed to cloud platform"
+                                />
+                              </div>
+                              <input
+                                type="text"
+                                value={project.url || ''}
+                                onChange={(e) => {
+                                  const newData = [...editingData];
+                                  newData[index].url = e.target.value;
+                                  setEditingData(newData);
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded-lg mt-3 text-gray-900 bg-white"
+                                placeholder="Project URL"
+                              />
+                            </div>
+                          ))}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const newData = [...editingData, { name: '', description: [], technologies: '', url: '', duration: '' }];
+                                setEditingData(newData);
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                            >
+                              Add Project
+                            </button>
+                            <button
+                              onClick={saveEditing}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <Save className="w-4 h-4" />
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Regular Projects with corresponding publications */}
+                          {resumeData.projects && resumeData.projects.map((project, index) => {
                           // Check if there's a corresponding publication for this project
                           const correspondingPub = resumeData.publications?.find(pub => 
                             pub.title.toLowerCase() === project.name.toLowerCase()
@@ -713,28 +1208,121 @@ OPTIMIZATION NOTES:
                               )}
                             </div>
                           ))}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ) : null}
 
                   {/* Certifications */}
                   {resumeData.certifications && resumeData.certifications.length > 0 && (
                     <div className="mb-8">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
-                        CERTIFICATIONS
-                      </h2>
-                      <div className="space-y-2">
-                        {resumeData.certifications.map((cert, index) => (
-                          <div key={index}>
-                            <div className="flex justify-between items-start">
-                              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{cert.name}</h3>
-                              <span className="text-gray-700 dark:text-gray-700 font-medium">{cert.year}</span>
-                            </div>
-                            <p className="text-gray-800 dark:text-gray-800">{cert.issuer}</p>
-                            {cert.expiry && <p className="text-gray-700 dark:text-gray-700 text-sm">Expires: {cert.expiry}</p>}
-                          </div>
-                        ))}
+                      <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
+                          CERTIFICATIONS
+                        </h2>
+                        <button
+                          onClick={() => startEditing('certifications', resumeData.certifications)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit certifications"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
                       </div>
+                      
+                      {editingSection === 'certifications' ? (
+                        <div className="space-y-4">
+                          {editingData.map((cert: any, index: number) => (
+                            <div key={index} className="border border-gray-300 rounded-lg p-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                <input
+                                  type="text"
+                                  value={cert.name}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].name = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Certification Name"
+                                />
+                                <input
+                                  type="text"
+                                  value={cert.year}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].year = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Year"
+                                />
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <input
+                                  type="text"
+                                  value={cert.issuer}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].issuer = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Issuing Organization"
+                                />
+                                <input
+                                  type="text"
+                                  value={cert.expiry || ''}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].expiry = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Expiry Date (optional)"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const newData = [...editingData, { name: '', issuer: '', year: '', expiry: '' }];
+                                setEditingData(newData);
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                            >
+                              Add Certification
+                            </button>
+                            <button
+                              onClick={saveEditing}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <Save className="w-4 h-4" />
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {resumeData.certifications.map((cert, index) => (
+                            <div key={index}>
+                              <div className="flex justify-between items-start">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{cert.name}</h3>
+                                <span className="text-gray-700 dark:text-gray-700 font-medium">{cert.year}</span>
+                              </div>
+                              <p className="text-gray-800 dark:text-gray-800">{cert.issuer}</p>
+                              {cert.expiry && <p className="text-gray-700 dark:text-gray-700 text-sm">Expires: {cert.expiry}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -742,94 +1330,226 @@ OPTIMIZATION NOTES:
                   {/* Awards */}
                   {resumeData.awards && resumeData.awards.length > 0 && (
                     <div className="mb-8">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
-                        AWARDS & HONORS
-                      </h2>
-                      <div className="space-y-1">
-                        {resumeData.awards.map((award, index) => (
-                          <p key={index} className="text-gray-800 dark:text-gray-800">• {award}</p>
-                        ))}
+                      <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
+                          AWARDS & HONORS
+                        </h2>
+                        <button
+                          onClick={() => startEditing('awards', resumeData.awards)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit awards"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
                       </div>
+                      
+                      {editingSection === 'awards' ? (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Awards (one per line)</label>
+                            <textarea
+                              value={Array.isArray(editingData) ? editingData.join('\n') : editingData}
+                              onChange={(e) => {
+                                // Keep the raw text for editing, only split when saving
+                                setEditingData(e.target.value);
+                              }}
+                              className="w-full p-3 border border-gray-300 rounded-lg h-32 resize-none text-gray-900 bg-white"
+                              placeholder="• Dean's List 2020-2022&#10;• Best Project Award 2021&#10;• Outstanding Student Recognition"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={saveEditing}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <Save className="w-4 h-4" />
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {resumeData.awards.map((award, index) => (
+                            <p key={index} className="text-gray-800 dark:text-gray-800">• {award}</p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* Languages */}
                   {resumeData.languages && resumeData.languages.length > 0 && (
                     <div className="mb-8">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
-                        LANGUAGES
-                      </h2>
-                      <p className="text-gray-800 dark:text-gray-800">{resumeData.languages.join(' • ')}</p>
+                      <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
+                          LANGUAGES
+                        </h2>
+                        <button
+                          onClick={() => startEditing('languages', resumeData.languages)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit languages"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      {editingSection === 'languages' ? (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Languages (comma-separated)</label>
+                            <textarea
+                              value={Array.isArray(editingData) ? editingData.join(', ') : editingData}
+                              onChange={(e) => {
+                                // Keep the raw text for editing, only split when saving
+                                setEditingData(e.target.value);
+                              }}
+                              className="w-full p-3 border border-gray-300 rounded-lg h-24 resize-none text-gray-900 bg-white"
+                              placeholder="English (Native), Spanish (Fluent), French (Conversational)"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={saveEditing}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <Save className="w-4 h-4" />
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-gray-800 dark:text-gray-800">{resumeData.languages.join(' • ')}</p>
+                      )}
                     </div>
                   )}
 
                   {/* References */}
                   {resumeData.references && resumeData.references.length > 0 && (
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
-                        REFERENCES
-                      </h2>
-                      <div className="space-y-3">
-                        {resumeData.references.map((ref, index) => (
-                          <div key={index}>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{ref.name}</h3>
-                            <p className="text-gray-800 dark:text-gray-800">{ref.title} at {ref.company}</p>
-                            <p className="text-gray-700 dark:text-gray-700 text-sm">{ref.contact}</p>
-                          </div>
-                        ))}
+                      <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
+                          REFERENCES
+                        </h2>
+                        <button
+                          onClick={() => startEditing('references', resumeData.references)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit references"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
                       </div>
+                      
+                      {editingSection === 'references' ? (
+                        <div className="space-y-4">
+                          {editingData.map((ref: any, index: number) => (
+                            <div key={index} className="border border-gray-300 rounded-lg p-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                <input
+                                  type="text"
+                                  value={ref.name}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].name = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Reference Name"
+                                />
+                                <input
+                                  type="text"
+                                  value={ref.title}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].title = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Title/Position"
+                                />
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <input
+                                  type="text"
+                                  value={ref.company}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].company = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Company"
+                                />
+                                <input
+                                  type="text"
+                                  value={ref.contact}
+                                  onChange={(e) => {
+                                    const newData = [...editingData];
+                                    newData[index].contact = e.target.value;
+                                    setEditingData(newData);
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                                  placeholder="Contact Information"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const newData = [...editingData, { name: '', title: '', company: '', contact: '' }];
+                                setEditingData(newData);
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                            >
+                              Add Reference
+                            </button>
+                            <button
+                              onClick={saveEditing}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <Save className="w-4 h-4" />
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {resumeData.references.map((ref, index) => (
+                            <div key={index}>
+                              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{ref.name}</h3>
+                              <p className="text-gray-800 dark:text-gray-800">{ref.title} at {ref.company}</p>
+                              <p className="text-gray-700 dark:text-gray-700 text-sm">{ref.contact}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Optimized Resume Display */}
-            {optimizedResume && (
-              <div className="bg-white dark:bg-gray-50 rounded-xl shadow-lg p-6 border">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-900">
-                    Optimized Resume
-                  </h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={downloadResume}
-                      className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-3 rounded-lg transition-colors flex items-center text-sm"
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      TXT
-                    </button>
-                    <button
-                      onClick={() => {
-                        // Create a mock resume data for optimized resume
-                        const optimizedData = { ...resumeData! };
-                        downloadAsPDF(optimizedData);
-                      }}
-                      className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition-colors flex items-center text-sm"
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      PDF
-                    </button>
-                    <button
-                      onClick={() => {
-                        // Create a mock resume data for optimized resume
-                        const optimizedData = { ...resumeData! };
-                        downloadAsDOCX(optimizedData);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors flex items-center text-sm"
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      DOCX
-                    </button>
-                  </div>
-                </div>
-                <div className="bg-white dark:bg-gray-50 p-6 rounded-lg border max-h-96 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-900 dark:text-gray-900 font-mono leading-relaxed">
-                    {optimizedResume}
-                  </pre>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right Panel - Job Description */}
@@ -871,23 +1591,6 @@ OPTIMIZATION NOTES:
                   )}
                 </button>
 
-                <button
-                  onClick={optimizeResume}
-                  disabled={!resumeData || !jobDescription.trim() || isProcessing}
-                  className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Optimizing Resume...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Optimize Resume for This Job
-                    </>
-                  )}
-                </button>
               </div>
 
               {/* ATS Analysis Results */}
