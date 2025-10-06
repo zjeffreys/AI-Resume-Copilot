@@ -136,6 +136,21 @@ class ATSAnalysisResponse(BaseModel):
     strengths: list[str]
     message: str
 
+# New models for section optimization
+class SectionOptimizationRequest(BaseModel):
+    resume_data: ResumeData
+    job_description: str
+    section: str  # "summary", "experience", "skills", etc.
+    section_data: dict  # The current section data
+    custom_prompt: str = ""  # User's custom instructions
+
+class SectionOptimizationResponse(BaseModel):
+    success: bool
+    optimized_section: dict
+    explanation: str
+    changes_made: list[str]
+    message: str
+
 # Add CORS middleware to allow frontend requests
 app.add_middleware(
     CORSMiddleware,
@@ -557,6 +572,162 @@ def analyze_resume_with_ats(resume_data: ResumeData, job_description: str) -> AT
     except Exception as e:
         print(f"ATS analysis error: {e}")
         raise HTTPException(status_code=500, detail=f"Error during ATS analysis: {str(e)}")
+
+
+def optimize_section_with_chatgpt(resume_data: ResumeData, job_description: str, section: str, section_data: dict, custom_prompt: str = "") -> SectionOptimizationResponse:
+    """Optimize a specific resume section using ChatGPT with custom user instructions."""
+    try:
+        # Check if OpenAI client is available
+        if openai_client is None:
+            raise Exception("OpenAI client not initialized")
+        
+        # Get OpenAI configuration for optimization
+        openai_config = Config.get_openai_config("optimization")
+        
+        # Create section-specific prompts
+        section_prompts = {
+            "summary": "professional summary or objective",
+            "experience": "work experience entries",
+            "skills": "skills list",
+            "education": "education entries",
+            "projects": "project entries",
+            "publications": "publication entries",
+            "certifications": "certification entries",
+            "volunteer_experience": "volunteer experience entries",
+            "awards": "awards and honors",
+            "languages": "languages list",
+            "references": "reference entries"
+        }
+        
+        section_name = section_prompts.get(section, section)
+        
+        # Create the optimization prompt
+        base_prompt = f"""
+        You are an expert resume optimization specialist. Your task is to optimize the {section_name} section of a resume to better match a specific job description.
+
+        JOB DESCRIPTION:
+        {job_description}
+
+        CURRENT RESUME CONTEXT:
+        Name: {resume_data.name}
+        Current Summary: {resume_data.summary}
+        Skills: {', '.join(resume_data.skills)}
+        
+        CURRENT {section.upper()} SECTION DATA:
+        {json.dumps(section_data, indent=2)}
+
+        OPTIMIZATION GUIDELINES:
+        1. Analyze the job description to identify key requirements, skills, and keywords
+        2. Optimize the section to better align with the job requirements
+        3. Maintain authenticity and truthfulness - only enhance what's already there
+        4. Use action verbs and quantifiable achievements where possible
+        5. Ensure the optimized content flows naturally and professionally
+        6. Keep the same structure and format as the original
+        7. Focus on relevance to the specific job posting
+
+        IMPORTANT RULES:
+        - Do NOT add false information or experiences
+        - Do NOT change dates, company names, or other factual details
+        - Do NOT make the content longer than necessary
+        - Maintain the original tone and style
+        - Only enhance and rephrase existing content for better impact
+        """
+
+        # Add custom user instructions if provided
+        if custom_prompt.strip():
+            base_prompt += f"""
+
+        CUSTOM USER INSTRUCTIONS:
+        {custom_prompt}
+
+        Please incorporate these specific instructions while optimizing the section.
+        """
+
+        # Add section-specific instructions
+        if section == "summary":
+            base_prompt += """
+        
+        For the summary section:
+        - Make it more targeted to the specific job
+        - Highlight the most relevant skills and experiences
+        - Keep it concise (2-3 sentences)
+        - Use keywords from the job description naturally
+        """
+        elif section == "experience":
+            base_prompt += """
+        
+        For experience entries:
+        - Start bullet points with strong action verbs
+        - Quantify achievements with numbers, percentages, or timeframes
+        - Focus on results and impact rather than just responsibilities
+        - Use keywords from the job description
+        - Keep each bullet point concise but impactful
+        """
+        elif section == "skills":
+            base_prompt += """
+        
+        For skills section:
+        - Prioritize skills mentioned in the job description
+        - Group related skills together
+        - Use the exact terminology from the job posting
+        - Remove outdated or irrelevant skills if space is limited
+        - Add proficiency levels if appropriate
+        """
+
+        base_prompt += """
+
+        Please return your response in the following JSON format:
+        {
+            "optimized_section": {
+                // The optimized section data in the same structure as the input
+            },
+            "explanation": "Brief explanation of what was optimized and why",
+            "changes_made": [
+                "List of specific changes made",
+                "Each change as a separate string"
+            ]
+        }
+
+        Return only the JSON object, no additional text or formatting.
+        """
+
+        # Call OpenAI API
+        response = openai_client.chat.completions.create(
+            model=openai_config["model"],
+            messages=[
+                {"role": "system", "content": "You are an expert resume optimization specialist. Optimize resume sections to better match job requirements while maintaining authenticity and truthfulness."},
+                {"role": "user", "content": base_prompt}
+            ],
+            max_tokens=openai_config["max_tokens"],
+            temperature=openai_config["temperature"]
+        )
+
+        # Extract the response content
+        response_text = response.choices[0].message.content.strip()
+        
+        # Clean up the response (remove any markdown formatting)
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        
+        # Parse the JSON response
+        parsed_data = json.loads(response_text)
+        
+        return SectionOptimizationResponse(
+            success=True,
+            optimized_section=parsed_data["optimized_section"],
+            explanation=parsed_data["explanation"],
+            changes_made=parsed_data["changes_made"],
+            message="Section optimization completed successfully"
+        )
+        
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse optimization response")
+    except Exception as e:
+        print(f"Section optimization error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during section optimization: {str(e)}")
 
 
 def generate_pdf(resume_data: ResumeData) -> bytes:
@@ -1132,6 +1303,54 @@ async def analyze_ats(request: ATSAnalysisRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during ATS analysis: {str(e)}")
+
+@app.post("/optimize-section", response_model=SectionOptimizationResponse)
+async def optimize_section(request: SectionOptimizationRequest):
+    """
+    Optimize a specific resume section using ChatGPT with custom user instructions.
+    Supports chatbot-style optimization with custom prompts.
+    """
+    try:
+        if not request.job_description.strip():
+            raise HTTPException(status_code=400, detail="Job description cannot be empty")
+        
+        if not request.resume_data:
+            raise HTTPException(status_code=400, detail="Resume data is required")
+        
+        if not request.section.strip():
+            raise HTTPException(status_code=400, detail="Section name is required")
+        
+        if not request.section_data:
+            raise HTTPException(status_code=400, detail="Section data is required")
+        
+        # Validate section name
+        valid_sections = [
+            "summary", "experience", "skills", "education", "projects", 
+            "publications", "certifications", "volunteer_experience", 
+            "awards", "languages", "references"
+        ]
+        
+        if request.section not in valid_sections:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid section. Must be one of: {', '.join(valid_sections)}"
+            )
+        
+        # Perform section optimization
+        optimization_result = optimize_section_with_chatgpt(
+            request.resume_data,
+            request.job_description,
+            request.section,
+            request.section_data,
+            request.custom_prompt
+        )
+        
+        return optimization_result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during section optimization: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

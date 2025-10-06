@@ -96,6 +96,14 @@ interface ATSAnalysisResponse {
   message: string;
 }
 
+interface SectionOptimizationResponse {
+  success: boolean;
+  optimized_section: any;
+  explanation: string;
+  changes_made: string[];
+  message: string;
+}
+
 export default function Home() {
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
   const [jobDescription, setJobDescription] = useState('');
@@ -106,6 +114,13 @@ export default function Home() {
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Optimization state
+  const [optimizingSection, setOptimizingSection] = useState<string | null>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizationResult, setOptimizationResult] = useState<SectionOptimizationResponse | null>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [showOptimizationModal, setShowOptimizationModal] = useState(false);
 
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,6 +307,145 @@ export default function Home() {
     setResumeData(updatedResumeData);
     setEditingSection(null);
     setEditingData(null);
+  };
+
+  const startOptimization = (section: string) => {
+    setOptimizingSection(section);
+    setCustomPrompt('');
+    setOptimizationResult(null);
+    setShowOptimizationModal(true);
+  };
+
+  const cancelOptimization = () => {
+    setOptimizingSection(null);
+    setCustomPrompt('');
+    setOptimizationResult(null);
+    setShowOptimizationModal(false);
+  };
+
+  const optimizeSection = async () => {
+    if (!resumeData || !jobDescription || !optimizingSection) {
+      alert('Please upload a resume and provide a job description first.');
+      return;
+    }
+
+    setIsOptimizing(true);
+    
+    try {
+      // Get current section data
+      let sectionData: any;
+      switch (optimizingSection) {
+        case 'summary':
+          sectionData = resumeData.summary;
+          break;
+        case 'skills':
+          sectionData = resumeData.skills;
+          break;
+        case 'experience':
+          sectionData = resumeData.experience;
+          break;
+        case 'education':
+          sectionData = resumeData.education;
+          break;
+        case 'projects':
+          sectionData = resumeData.projects;
+          break;
+        case 'publications':
+          sectionData = resumeData.publications;
+          break;
+        case 'certifications':
+          sectionData = resumeData.certifications;
+          break;
+        case 'volunteer_experience':
+          sectionData = resumeData.volunteer_experience;
+          break;
+        case 'awards':
+          sectionData = resumeData.awards;
+          break;
+        case 'languages':
+          sectionData = resumeData.languages;
+          break;
+        case 'references':
+          sectionData = resumeData.references;
+          break;
+        default:
+          throw new Error('Invalid section');
+      }
+
+      const response = await fetch('http://localhost:8000/optimize-section', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          resume_data: resumeData,
+          job_description: jobDescription,
+          section: optimizingSection,
+          section_data: sectionData,
+          custom_prompt: customPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to optimize section');
+      }
+
+      const result = await response.json();
+      setOptimizationResult(result);
+    } catch (error) {
+      console.error('Error optimizing section:', error);
+      alert('Failed to optimize section. Please try again.');
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  const applyOptimization = () => {
+    if (!resumeData || !optimizationResult || !optimizingSection) return;
+
+    const updatedResumeData = { ...resumeData };
+    
+    switch (optimizingSection) {
+      case 'summary':
+        updatedResumeData.summary = optimizationResult.optimized_section;
+        break;
+      case 'skills':
+        updatedResumeData.skills = optimizationResult.optimized_section;
+        break;
+      case 'experience':
+        updatedResumeData.experience = optimizationResult.optimized_section;
+        break;
+      case 'education':
+        updatedResumeData.education = optimizationResult.optimized_section;
+        break;
+      case 'projects':
+        updatedResumeData.projects = optimizationResult.optimized_section;
+        break;
+      case 'publications':
+        updatedResumeData.publications = optimizationResult.optimized_section;
+        break;
+      case 'certifications':
+        updatedResumeData.certifications = optimizationResult.optimized_section;
+        break;
+      case 'volunteer_experience':
+        updatedResumeData.volunteer_experience = optimizationResult.optimized_section;
+        break;
+      case 'awards':
+        updatedResumeData.awards = optimizationResult.optimized_section;
+        break;
+      case 'languages':
+        updatedResumeData.languages = optimizationResult.optimized_section;
+        break;
+      case 'references':
+        updatedResumeData.references = optimizationResult.optimized_section;
+        break;
+    }
+
+    setResumeData(updatedResumeData);
+    setShowOptimizationModal(false);
+    setOptimizationResult(null);
+    setOptimizingSection(null);
+    setCustomPrompt('');
   };
 
   const generateResumeText = (data: ResumeData) => {
@@ -679,13 +833,22 @@ export default function Home() {
                       <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
                         SUMMARY
                       </h2>
-                      <button
-                        onClick={() => startEditing('summary', resumeData.summary)}
-                        className="text-gray-500 hover:text-blue-600 transition-colors"
-                        title="Edit summary"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startOptimization('summary')}
+                          className="text-gray-500 hover:text-green-600 transition-colors"
+                          title="Optimize summary with AI"
+                        >
+                          <Target className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => startEditing('summary', resumeData.summary)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit summary"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     {editingSection === 'summary' ? (
@@ -726,13 +889,22 @@ export default function Home() {
                       <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
                         SKILLS & OTHER
                       </h2>
-                      <button
-                        onClick={() => startEditing('skills', resumeData.skills)}
-                        className="text-gray-500 hover:text-blue-600 transition-colors"
-                        title="Edit skills"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startOptimization('skills')}
+                          className="text-gray-500 hover:text-green-600 transition-colors"
+                          title="Optimize skills with AI"
+                        >
+                          <Target className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => startEditing('skills', resumeData.skills)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit skills"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     {editingSection === 'skills' ? (
@@ -792,13 +964,22 @@ export default function Home() {
                       <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
                         PROFESSIONAL EXPERIENCE
                       </h2>
-                      <button
-                        onClick={() => startEditing('experience', resumeData.experience)}
-                        className="text-gray-500 hover:text-blue-600 transition-colors"
-                        title="Edit experience"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startOptimization('experience')}
+                          className="text-gray-500 hover:text-green-600 transition-colors"
+                          title="Optimize experience with AI"
+                        >
+                          <Target className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => startEditing('experience', resumeData.experience)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit experience"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     {editingSection === 'experience' ? (
@@ -910,13 +1091,22 @@ export default function Home() {
                       <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
                         EDUCATION
                       </h2>
-                      <button
-                        onClick={() => startEditing('education', resumeData.education)}
-                        className="text-gray-500 hover:text-blue-600 transition-colors"
-                        title="Edit education"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startOptimization('education')}
+                          className="text-gray-500 hover:text-green-600 transition-colors"
+                          title="Optimize education with AI"
+                        >
+                          <Target className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => startEditing('education', resumeData.education)}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Edit education"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     {editingSection === 'education' ? (
@@ -1042,13 +1232,22 @@ export default function Home() {
                         <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
                           PROJECTS
                         </h2>
-                        <button
-                          onClick={() => startEditing('projects', resumeData.projects)}
-                          className="text-gray-500 hover:text-blue-600 transition-colors"
-                          title="Edit projects"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => startOptimization('projects')}
+                            className="text-gray-500 hover:text-green-600 transition-colors"
+                            title="Optimize projects with AI"
+                          >
+                            <Target className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => startEditing('projects', resumeData.projects)}
+                            className="text-gray-500 hover:text-blue-600 transition-colors"
+                            title="Edit projects"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                       {editingSection === 'projects' ? (
                         <div className="space-y-4">
@@ -1850,6 +2049,104 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Optimization Modal */}
+        {showOptimizationModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Optimize {optimizingSection ? optimizingSection.charAt(0).toUpperCase() + optimizingSection.slice(1) : ''} Section
+                </h3>
+                <button
+                  onClick={cancelOptimization}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Custom Instructions (Optional)
+                  </label>
+                  <textarea
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder="Add specific instructions for the AI optimization (e.g., 'Focus on leadership skills', 'Emphasize technical achievements', 'Make it more concise')"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={optimizeSection}
+                    disabled={isOptimizing}
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isOptimizing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Optimizing...
+                      </>
+                    ) : (
+                      <>
+                        <Target className="w-4 h-4" />
+                        Optimize Section
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={cancelOptimization}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {optimizationResult && (
+                  <div className="mt-6 space-y-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                      <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">
+                        Optimization Complete!
+                      </h4>
+                      <p className="text-green-700 dark:text-green-300 text-sm">
+                        {optimizationResult.explanation}
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                        Changes Made:
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                        {optimizationResult.changes_made.map((change, index) => (
+                          <li key={index}>{change}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={applyOptimization}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                      >
+                        Apply Optimization
+                      </button>
+                      <button
+                        onClick={() => setOptimizationResult(null)}
+                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-12 text-gray-600 dark:text-gray-400">

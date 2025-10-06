@@ -8,6 +8,8 @@ An intelligent resume optimization tool that uses AI to analyze your resume agai
 - **🎯 ATS Analysis**: Get comprehensive ATS (Applicant Tracking System) analysis
 - **📊 Score Breakdown**: Detailed scoring across keywords, experience, education, and skills
 - **💡 Smart Insights**: AI-powered recommendations to improve your resume
+- **🤖 AI Section Optimization**: Optimize individual resume sections with custom AI prompts
+- **💬 Chatbot-Style Interface**: Provide custom instructions for targeted optimizations
 - **📱 Professional Output**: Download optimized resumes in PDF, DOCX, or TXT formats
 - **🔍 Keyword Analysis**: See matched vs missing keywords from job descriptions
 
@@ -64,7 +66,30 @@ Once running, open your browser and visit:
 2. **Paste Job Description**: Copy the job posting text into the right panel
 3. **Analyze with ATS**: Click "Analyze Resume with ATS" to get detailed insights
 4. **Review Results**: See your scores, matched/missing keywords, and recommendations
-5. **Download Optimized Resume**: Use the download buttons to get your improved resume
+5. **Optimize Sections**: Click the 🎯 (target) button above any section to optimize it with AI
+6. **Download Optimized Resume**: Use the download buttons to get your improved resume
+
+## 🤖 AI Section Optimization
+
+### How It Works
+1. **Click Optimize**: Click the green target (🎯) button above any resume section
+2. **Add Custom Instructions**: Optionally provide specific instructions for the AI
+3. **Review Changes**: See what the AI optimized and why
+4. **Apply or Try Again**: Accept the changes or modify your instructions
+
+### Supported Sections
+- **Summary**: Optimize your professional summary for the specific role
+- **Skills**: Reorder and enhance skills to match job requirements
+- **Experience**: Improve bullet points with action verbs and quantifiable results
+- **Education**: Enhance education section relevance
+- **Projects**: Optimize project descriptions and technologies
+
+### Custom Instructions Examples
+- "Focus on leadership skills and team management"
+- "Emphasize technical achievements and quantifiable results"
+- "Make it more concise and ATS-friendly"
+- "Highlight experience with cloud technologies"
+- "Add more action verbs and specific metrics"
 
 ## 🎯 ATS Analysis Features
 
