@@ -38,7 +38,7 @@
 - `POST /parse-resume`: Parse uploaded resume files (PDF/DOCX)
 - `POST /generate-pdf`: Generate PDF from resume data
 - `POST /generate-docx`: Generate DOCX from resume data
-- `POST /extract-resume-text`: Extract raw text from resume files
+- `POST /analyze-ats`: Analyze resume against job description
 
 ## Features
 

@@ -6,9 +6,10 @@ from docx import Document
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+from reportlab.lib.colors import black
 import io
 import re
 import json
@@ -31,25 +32,70 @@ except Exception as e:
 app = FastAPI(title="Resume Text Extractor", version="1.0.0")
 
 # Pydantic models for request/response
+class Experience(BaseModel):
+    position: str
+    company: str
+    duration: str
+    description: list[str]  # List of bullet points
+
+class Education(BaseModel):
+    degree: str
+    institution: str
+    year: str
+    gpa: str = ""
+    relevant_coursework: str = ""
+
+class Project(BaseModel):
+    name: str
+    description: list[str]  # List of bullet points
+    technologies: str = ""
+    url: str = ""
+    duration: str = ""
+
+class Publication(BaseModel):
+    title: str
+    journal: str = ""
+    year: str = ""
+    authors: str = ""
+    url: str = ""
+
+class Certification(BaseModel):
+    name: str
+    issuer: str
+    year: str = ""
+    expiry: str = ""
+
+class VolunteerExperience(BaseModel):
+    position: str
+    organization: str
+    duration: str
+    description: list[str]  # List of bullet points
+
+class Reference(BaseModel):
+    name: str
+    title: str = ""
+    company: str = ""
+    contact: str = ""
+
 class ResumeData(BaseModel):
     name: str
     email: str
     phone: str
     summary: str
-    experience: list[dict]
-    education: list[dict]
+    experience: list[Experience]
+    education: list[Education]
     skills: list[str]
     github_profile: str = ""
     linkedin_profile: str = ""
     website: str = ""
     location: str = ""
-    publications: list[dict] = []
-    projects: list[dict] = []
-    certifications: list[dict] = []
+    publications: list[Publication] = []
+    projects: list[Project] = []
+    certifications: list[Certification] = []
     languages: list[str] = []
-    volunteer_experience: list[dict] = []
+    volunteer_experience: list[VolunteerExperience] = []
     awards: list[str] = []
-    references: list[dict] = []
+    references: list[Reference] = []
 
 class ParsedResumeResponse(BaseModel):
     success: bool
@@ -151,7 +197,7 @@ def parse_resume_with_chatgpt(text: str) -> ResumeData:
                     "position": "Job title",
                     "company": "Company name",
                     "duration": "Employment duration (e.g., '2020-2023' or 'Jan 2020 - Present')",
-                    "description": "Job description and key achievements"
+                    "description": ["Bullet point 1", "Bullet point 2", "Bullet point 3", "Additional bullet points as needed"]
                 }}
             ],
             "education": [
@@ -166,7 +212,7 @@ def parse_resume_with_chatgpt(text: str) -> ResumeData:
             "projects": [
                 {{
                     "name": "Project name",
-                    "description": "Project description",
+                    "description": ["Bullet point 1", "Bullet point 2", "Additional bullet points as needed"],
                     "technologies": "Technologies used",
                     "url": "Project URL if mentioned",
                     "duration": "Project duration if mentioned"
@@ -194,7 +240,7 @@ def parse_resume_with_chatgpt(text: str) -> ResumeData:
                     "position": "Volunteer position",
                     "organization": "Organization name",
                     "duration": "Duration of volunteer work",
-                    "description": "Description of volunteer activities"
+                    "description": ["Bullet point 1", "Bullet point 2", "Additional bullet points as needed"]
                 }}
             ],
             "awards": ["List of awards, honors, or recognitions"],
@@ -212,6 +258,13 @@ def parse_resume_with_chatgpt(text: str) -> ResumeData:
 
         Resume text:
         {text}
+
+        IMPORTANT FORMATTING RULES:
+        1. For experience descriptions: ALWAYS break down the job description into AT LEAST 3 separate bullet points as an array. Even if the original text is a single paragraph, analyze the content and create 3+ logical bullet points that capture different aspects of the role (e.g., responsibilities, achievements, technologies used, impact, etc.).
+        2. For projects and volunteer_experience descriptions: Break down descriptions into arrays with at least 2-3 bullet points per project/volunteer role.
+        3. Each bullet point should be a complete, meaningful statement that stands alone.
+        4. Preserve the original meaning and content while making it more readable and structured.
+        5. Use arrays for description fields instead of newline-separated strings.
 
         IMPORTANT: Extract ALL information that is present. Look for:
         - Social media profiles (GitHub, LinkedIn, Twitter, etc.)
@@ -252,6 +305,73 @@ def parse_resume_with_chatgpt(text: str) -> ResumeData:
         # Parse the JSON response
         parsed_data = json.loads(response_text)
         
+        # Convert parsed data to structured models
+        experience_list = []
+        for exp in parsed_data.get("experience", []):
+            experience_list.append(Experience(
+                position=exp.get("position", ""),
+                company=exp.get("company", ""),
+                duration=exp.get("duration", ""),
+                description=exp.get("description", [])
+            ))
+        
+        education_list = []
+        for edu in parsed_data.get("education", []):
+            education_list.append(Education(
+                degree=edu.get("degree", ""),
+                institution=edu.get("institution", ""),
+                year=edu.get("year", ""),
+                gpa=edu.get("gpa", ""),
+                relevant_coursework=edu.get("relevant_coursework", "")
+            ))
+        
+        projects_list = []
+        for proj in parsed_data.get("projects", []):
+            projects_list.append(Project(
+                name=proj.get("name", ""),
+                description=proj.get("description", []),
+                technologies=proj.get("technologies", ""),
+                url=proj.get("url", ""),
+                duration=proj.get("duration", "")
+            ))
+        
+        publications_list = []
+        for pub in parsed_data.get("publications", []):
+            publications_list.append(Publication(
+                title=pub.get("title", ""),
+                journal=pub.get("journal", ""),
+                year=pub.get("year", ""),
+                authors=pub.get("authors", ""),
+                url=pub.get("url", "")
+            ))
+        
+        certifications_list = []
+        for cert in parsed_data.get("certifications", []):
+            certifications_list.append(Certification(
+                name=cert.get("name", ""),
+                issuer=cert.get("issuer", ""),
+                year=cert.get("year", ""),
+                expiry=cert.get("expiry", "")
+            ))
+        
+        volunteer_list = []
+        for vol in parsed_data.get("volunteer_experience", []):
+            volunteer_list.append(VolunteerExperience(
+                position=vol.get("position", ""),
+                organization=vol.get("organization", ""),
+                duration=vol.get("duration", ""),
+                description=vol.get("description", [])
+            ))
+        
+        references_list = []
+        for ref in parsed_data.get("references", []):
+            references_list.append(Reference(
+                name=ref.get("name", ""),
+                title=ref.get("title", ""),
+                company=ref.get("company", ""),
+                contact=ref.get("contact", "")
+            ))
+        
         # Validate and create ResumeData object
         return ResumeData(
             name=parsed_data.get("name", "Resume Owner"),
@@ -262,16 +382,16 @@ def parse_resume_with_chatgpt(text: str) -> ResumeData:
             github_profile=parsed_data.get("github_profile", ""),
             linkedin_profile=parsed_data.get("linkedin_profile", ""),
             website=parsed_data.get("website", ""),
-            experience=parsed_data.get("experience", []),
-            education=parsed_data.get("education", []),
+            experience=experience_list,
+            education=education_list,
             skills=parsed_data.get("skills", []),
-            publications=parsed_data.get("publications", []),
-            projects=parsed_data.get("projects", []),
-            certifications=parsed_data.get("certifications", []),
+            publications=publications_list,
+            projects=projects_list,
+            certifications=certifications_list,
             languages=parsed_data.get("languages", []),
-            volunteer_experience=parsed_data.get("volunteer_experience", []),
+            volunteer_experience=volunteer_list,
             awards=parsed_data.get("awards", []),
-            references=parsed_data.get("references", [])
+            references=references_list
         )
         
     except json.JSONDecodeError as e:
@@ -305,16 +425,16 @@ def analyze_resume_with_ats(resume_data: ResumeData, job_description: str) -> AT
         Skills: {', '.join(resume_data.skills)}
         
         Experience:
-        {chr(10).join([f"- {exp['position']} at {exp['company']} ({exp['duration']}): {exp['description']}" for exp in resume_data.experience])}
+        {chr(10).join([f"- {exp.position} at {exp.company} ({exp.duration}): {'; '.join(exp.description)}" for exp in resume_data.experience])}
         
         Education:
-        {chr(10).join([f"- {edu['degree']} from {edu['institution']} ({edu['year']})" for edu in resume_data.education])}
+        {chr(10).join([f"- {edu.degree} from {edu.institution} ({edu.year})" for edu in resume_data.education])}
         
         Projects:
-        {chr(10).join([f"- {proj['name']}: {proj['description']} (Technologies: {proj['technologies']})" for proj in resume_data.projects])}
+        {chr(10).join([f"- {proj.name}: {'; '.join(proj.description)} (Technologies: {proj.technologies})" for proj in resume_data.projects])}
         
         Certifications:
-        {chr(10).join([f"- {cert['name']} from {cert['issuer']} ({cert['year']})" for cert in resume_data.certifications])}
+        {chr(10).join([f"- {cert.name} from {cert.issuer} ({cert.year})" for cert in resume_data.certifications])}
         
         Job Description:
         {job_description}
@@ -464,28 +584,63 @@ def generate_pdf(resume_data: ResumeData) -> bytes:
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
+            fontSize=18,
+            spaceAfter=20,
             alignment=1,  # Center alignment
-            fontName=fonts["title"]
+            fontName='Helvetica-Bold'
+        )
+        
+        contact_style = ParagraphStyle(
+            'ContactStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=25,
+            alignment=1,  # Center alignment
+            fontName='Helvetica'
         )
         
         header_style = ParagraphStyle(
             'CustomHeader',
             parent=styles['Heading2'],
-            fontSize=14,
-            spaceAfter=12,
-            spaceBefore=20,
-            fontName=fonts["header"],
-            textColor='#2c3e50'
+            fontSize=12,
+            spaceAfter=4,
+            spaceBefore=15,
+            fontName='Helvetica-Bold',
+            textColor='#000000'
         )
         
         normal_style = ParagraphStyle(
             'CustomNormal',
             parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=6,
-            fontName=fonts["body"]
+            fontSize=10,
+            spaceAfter=4,
+            fontName='Helvetica'
+        )
+        
+        company_style = ParagraphStyle(
+            'CompanyStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=2,
+            fontName='Helvetica-Bold'
+        )
+        
+        position_style = ParagraphStyle(
+            'PositionStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=4,
+            leftIndent=20,
+            fontName='Helvetica'
+        )
+        
+        bullet_style = ParagraphStyle(
+            'BulletStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=2,
+            leftIndent=20,
+            fontName='Helvetica'
         )
         
         # Build content
@@ -494,139 +649,146 @@ def generate_pdf(resume_data: ResumeData) -> bytes:
         # Title
         story.append(Paragraph(resume_data.name.upper(), title_style))
         
-        # Contact information
-        contact_info = resume_data.email
-        if resume_data.phone:
-            contact_info += f" | {resume_data.phone}"
+        # Contact information - single line format
+        contact_parts = []
         if resume_data.location:
-            contact_info += f" | {resume_data.location}"
-        story.append(Paragraph(contact_info, normal_style))
-        
-        # Social profiles and website
-        social_info = []
-        if resume_data.github_profile:
-            social_info.append(f"GitHub: {resume_data.github_profile}")
+            contact_parts.append(resume_data.location)
+        if resume_data.phone:
+            contact_parts.append(resume_data.phone)
+        if resume_data.email:
+            contact_parts.append(resume_data.email)
         if resume_data.linkedin_profile:
-            social_info.append(f"LinkedIn: {resume_data.linkedin_profile}")
-        if resume_data.website:
-            social_info.append(f"Website: {resume_data.website}")
+            contact_parts.append(resume_data.linkedin_profile)
         
-        if social_info:
-            story.append(Paragraph(" • ".join(social_info), normal_style))
-        
-        story.append(Spacer(1, 20))
+        if contact_parts:
+            story.append(Paragraph(" • ".join(contact_parts), contact_style))
         
         # Professional Summary
-        story.append(Paragraph("PROFESSIONAL SUMMARY", header_style))
+        story.append(Paragraph("SUMMARY", header_style))
+        story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
         story.append(Paragraph(resume_data.summary, normal_style))
-        story.append(Spacer(1, 12))
         
-        # Technical Skills
-        story.append(Paragraph("TECHNICAL SKILLS", header_style))
-        story.append(Paragraph(" • ".join(resume_data.skills), normal_style))
-        story.append(Spacer(1, 12))
+        # Skills & Other
+        story.append(Paragraph("SKILLS & OTHER", header_style))
+        story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
+        story.append(Paragraph(f"<b>Skills:</b> {', '.join(resume_data.skills)}", normal_style))
+        
+        # Add volunteering if exists
+        if resume_data.volunteer_experience:
+            vol_text = ", ".join([f"{vol.position} at {vol.organization} ({vol.duration})" for vol in resume_data.volunteer_experience])
+            story.append(Paragraph(f"<b>Volunteering:</b> {vol_text}", normal_style))
+        
         
         # Professional Experience
         story.append(Paragraph("PROFESSIONAL EXPERIENCE", header_style))
+        story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
         for exp in resume_data.experience:
-            story.append(Paragraph(f"<b>{exp['position']}</b> - {exp['company']} ({exp['duration']})", normal_style))
-            story.append(Paragraph(exp['description'], normal_style))
-            story.append(Spacer(1, 8))
+            # Company, Location, Date format
+            story.append(Paragraph(f"{exp.company}, {resume_data.location} ({exp.duration})", company_style))
+            # Position indented
+            story.append(Paragraph(exp.position, position_style))
+            # Bullet points
+            for bullet in exp.description:
+                story.append(Paragraph(f"• {bullet}", bullet_style))
         
         # Education
         story.append(Paragraph("EDUCATION", header_style))
+        story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
         for edu in resume_data.education:
-            edu_text = f"<b>{edu['degree']}</b> - {edu['institution']} ({edu['year']})"
-            if edu.get('gpa'):
-                edu_text += f" | GPA: {edu['gpa']}"
-            story.append(Paragraph(edu_text, normal_style))
-            if edu.get('relevant_coursework'):
-                story.append(Paragraph(f"Relevant Coursework: {edu['relevant_coursework']}", normal_style))
-        story.append(Spacer(1, 12))
+            # Institution, Location, Date format
+            story.append(Paragraph(f"{edu.institution}, {resume_data.location} ({edu.year})", company_style))
+            # Degree indented
+            story.append(Paragraph(edu.degree, position_style))
+            # Awards/details as bullets
+            if edu.gpa or edu.relevant_coursework:
+                if edu.gpa:
+                    story.append(Paragraph(f"• Awards: {edu.gpa}", bullet_style))
+                if edu.relevant_coursework:
+                    story.append(Paragraph(f"• {edu.relevant_coursework}", bullet_style))
         
-        # Projects
-        if resume_data.projects:
+        
+        # Projects (including Publications)
+        if resume_data.projects or resume_data.publications:
             story.append(Paragraph("PROJECTS", header_style))
+            story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
+            
+            # Process projects and check for corresponding publications
             for project in resume_data.projects:
-                project_text = f"<b>{project['name']}</b>"
-                if project.get('duration'):
-                    project_text += f" ({project['duration']})"
-                story.append(Paragraph(project_text, normal_style))
-                story.append(Paragraph(project.get('description', ''), normal_style))
-                if project.get('technologies'):
-                    story.append(Paragraph(f"Technologies: {project['technologies']}", normal_style))
-                if project.get('url'):
-                    story.append(Paragraph(f"URL: {project['url']}", normal_style))
-                story.append(Spacer(1, 6))
-            story.append(Spacer(1, 12))
-        
-        # Publications
-        if resume_data.publications:
-            story.append(Paragraph("PUBLICATIONS", header_style))
+                # Project name, duration format
+                story.append(Paragraph(f"{project.name} ({project.duration})", company_style))
+                # Description as bullet points
+                for bullet in project.description:
+                    story.append(Paragraph(f"• {bullet}", bullet_style))
+                
+                # Check if there's a corresponding publication for this project
+                corresponding_pub = None
+                for pub in resume_data.publications:
+                    if pub.title.lower() == project.name.lower():
+                        corresponding_pub = pub
+                        break
+                
+                # Add publication details if found
+                if corresponding_pub:
+                    if corresponding_pub.journal:
+                        story.append(Paragraph(f"• Published in: {corresponding_pub.journal} ({corresponding_pub.year})", bullet_style))
+                    if corresponding_pub.url:
+                        story.append(Paragraph(f"• Publication URL: {corresponding_pub.url}", bullet_style))
+            
+            # Add standalone publications (those without corresponding projects)
             for pub in resume_data.publications:
-                pub_text = f"<b>{pub['title']}</b>"
-                if pub.get('journal'):
-                    pub_text += f" - {pub['journal']}"
-                if pub.get('year'):
-                    pub_text += f" ({pub['year']})"
-                story.append(Paragraph(pub_text, normal_style))
-                if pub.get('authors'):
-                    story.append(Paragraph(f"Authors: {pub['authors']}", normal_style))
-                if pub.get('url'):
-                    story.append(Paragraph(f"URL: {pub['url']}", normal_style))
-                story.append(Spacer(1, 6))
-            story.append(Spacer(1, 12))
+                # Check if this publication already has a corresponding project
+                has_corresponding_project = any(project.name.lower() == pub.title.lower() for project in resume_data.projects)
+                
+                if not has_corresponding_project:
+                    # Publication title with "Publication" label
+                    pub_text = f"{pub.title} (Publication)"
+                    if pub.journal:
+                        pub_text += f" - {pub.journal}"
+                    if pub.year:
+                        pub_text += f" ({pub.year})"
+                    story.append(Paragraph(pub_text, company_style))
+                    if pub.url:
+                        story.append(Paragraph(f"• URL: {pub.url}", bullet_style))
         
         # Certifications
         if resume_data.certifications:
             story.append(Paragraph("CERTIFICATIONS", header_style))
+            story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
             for cert in resume_data.certifications:
-                cert_text = f"<b>{cert['name']}</b> - {cert['issuer']}"
-                if cert.get('year'):
-                    cert_text += f" ({cert['year']})"
-                if cert.get('expiry'):
-                    cert_text += f" | Expires: {cert['expiry']}"
+                cert_text = f"<b>{cert.name}</b> - {cert.issuer}"
+                if cert.year:
+                    cert_text += f" ({cert.year})"
+                if cert.expiry:
+                    cert_text += f" | Expires: {cert.expiry}"
                 story.append(Paragraph(cert_text, normal_style))
-            story.append(Spacer(1, 12))
         
-        # Volunteer Experience
-        if resume_data.volunteer_experience:
-            story.append(Paragraph("VOLUNTEER EXPERIENCE", header_style))
-            for vol in resume_data.volunteer_experience:
-                vol_text = f"<b>{vol['position']}</b> - {vol['organization']}"
-                if vol.get('duration'):
-                    vol_text += f" ({vol['duration']})"
-                story.append(Paragraph(vol_text, normal_style))
-                story.append(Paragraph(vol.get('description', ''), normal_style))
-                story.append(Spacer(1, 6))
-            story.append(Spacer(1, 12))
         
         # Awards
         if resume_data.awards:
             story.append(Paragraph("AWARDS & HONORS", header_style))
+            story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
             for award in resume_data.awards:
                 story.append(Paragraph(f"• {award}", normal_style))
-            story.append(Spacer(1, 12))
         
         # Languages
         if resume_data.languages:
             story.append(Paragraph("LANGUAGES", header_style))
+            story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
             story.append(Paragraph(" • ".join(resume_data.languages), normal_style))
-            story.append(Spacer(1, 12))
         
         # References
         if resume_data.references:
             story.append(Paragraph("REFERENCES", header_style))
+            story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
             for ref in resume_data.references:
-                ref_text = f"<b>{ref['name']}</b>"
-                if ref.get('title'):
-                    ref_text += f", {ref['title']}"
-                if ref.get('company'):
-                    ref_text += f" at {ref['company']}"
+                ref_text = f"<b>{ref.name}</b>"
+                if ref.title:
+                    ref_text += f", {ref.title}"
+                if ref.company:
+                    ref_text += f" at {ref.company}"
                 story.append(Paragraph(ref_text, normal_style))
-                if ref.get('contact'):
-                    story.append(Paragraph(ref['contact'], normal_style))
-                story.append(Spacer(1, 6))
+                if ref.contact:
+                    story.append(Paragraph(ref.contact, normal_style))
         
         # Build PDF
         doc.build(story)
@@ -686,119 +848,138 @@ def generate_docx(resume_data: ResumeData) -> bytes:
         doc.add_paragraph()
         
         # Professional Summary
-        doc.add_heading('PROFESSIONAL SUMMARY', level=1)
+        doc.add_heading('SUMMARY', level=1)
         summary_para = doc.add_paragraph(resume_data.summary)
         summary_para.runs[0].font.size = Pt(fonts["body_size"])
         
-        # Technical Skills
-        doc.add_heading('TECHNICAL SKILLS', level=1)
-        skills_para = doc.add_paragraph(" • ".join(resume_data.skills))
+        # Skills & Other
+        doc.add_heading('SKILLS & OTHER', level=1)
+        skills_para = doc.add_paragraph(f"Skills: {', '.join(resume_data.skills)}")
         skills_para.runs[0].font.size = Pt(fonts["body_size"])
+        
+        # Add volunteering if exists
+        if resume_data.volunteer_experience:
+            vol_text = ", ".join([f"{vol.position} at {vol.organization} ({vol.duration})" for vol in resume_data.volunteer_experience])
+            vol_para = doc.add_paragraph(f"Volunteering: {vol_text}")
+            vol_para.runs[0].font.size = Pt(fonts["body_size"])
+        
         
         # Professional Experience
         doc.add_heading('PROFESSIONAL EXPERIENCE', level=1)
         for exp in resume_data.experience:
-            # Job title and company
-            job_para = doc.add_paragraph()
-            job_para.add_run(exp['position']).bold = True
-            job_para.add_run(f" - {exp['company']} ({exp['duration']})")
-            job_para.runs[0].font.size = Pt(fonts["body_size"])
+            # Company, Location, Date format
+            company_para = doc.add_paragraph()
+            company_para.add_run(exp.company).bold = True
+            company_para.add_run(f", {resume_data.location} ({exp.duration})")
+            company_para.runs[0].font.size = Pt(fonts["body_size"])
             
-            # Job description
-            desc_para = doc.add_paragraph(exp['description'])
-            desc_para.runs[0].font.size = Pt(fonts["body_size"])
+            # Position indented
+            position_para = doc.add_paragraph(f"    {exp.position}")
+            position_para.runs[0].font.size = Pt(fonts["body_size"])
+            
+            # Job description bullets
+            for bullet in exp.description:
+                desc_para = doc.add_paragraph(f"    • {bullet}")
+                desc_para.runs[0].font.size = Pt(fonts["body_size"])
             doc.add_paragraph()  # Add spacing
         
         # Education
         doc.add_heading('EDUCATION', level=1)
         for edu in resume_data.education:
-            edu_para = doc.add_paragraph()
-            edu_text = f"{edu['degree']} - {edu['institution']} ({edu['year']})"
-            if edu.get('gpa'):
-                edu_text += f" | GPA: {edu['gpa']}"
-            edu_para.add_run(edu_text).bold = True
-            edu_para.runs[0].font.size = Pt(fonts["body_size"])
-            if edu.get('relevant_coursework'):
-                coursework_para = doc.add_paragraph(f"Relevant Coursework: {edu['relevant_coursework']}")
+            # Institution, Location, Date format
+            institution_para = doc.add_paragraph()
+            institution_para.add_run(edu.institution).bold = True
+            institution_para.add_run(f", {resume_data.location} ({edu.year})")
+            institution_para.runs[0].font.size = Pt(fonts["body_size"])
+            
+            # Degree indented
+            degree_para = doc.add_paragraph(f"    {edu.degree}")
+            degree_para.runs[0].font.size = Pt(fonts["body_size"])
+            
+            # Awards/details as bullets
+            if edu.gpa:
+                awards_para = doc.add_paragraph(f"    • Awards: {edu.gpa}")
+                awards_para.runs[0].font.size = Pt(fonts["body_size"])
+            if edu.relevant_coursework:
+                coursework_para = doc.add_paragraph(f"    • {edu.relevant_coursework}")
                 coursework_para.runs[0].font.size = Pt(fonts["body_size"])
         
-        # Projects
-        if resume_data.projects:
+        
+        # Projects (including Publications)
+        if resume_data.projects or resume_data.publications:
             doc.add_heading('PROJECTS', level=1)
+            
+            # Process projects and check for corresponding publications
             for project in resume_data.projects:
+                # Project name, duration format
                 project_para = doc.add_paragraph()
-                project_text = project['name']
-                if project.get('duration'):
-                    project_text += f" ({project['duration']})"
+                project_text = project.name
+                if project.duration:
+                    project_text += f" ({project.duration})"
                 project_para.add_run(project_text).bold = True
                 project_para.runs[0].font.size = Pt(fonts["body_size"])
                 
-                if project.get('description'):
-                    desc_para = doc.add_paragraph(project['description'])
-                    desc_para.runs[0].font.size = Pt(fonts["body_size"])
+                # Description as bullet points
+                for bullet in project.description:
+                    bullet_para = doc.add_paragraph(f"    • {bullet}")
+                    bullet_para.runs[0].font.size = Pt(fonts["body_size"])
                 
-                if project.get('technologies'):
-                    tech_para = doc.add_paragraph(f"Technologies: {project['technologies']}")
-                    tech_para.runs[0].font.size = Pt(fonts["body_size"])
-                
-                if project.get('url'):
-                    url_para = doc.add_paragraph(f"URL: {project['url']}")
+                if project.url:
+                    url_para = doc.add_paragraph(f"URL: {project.url}")
                     url_para.runs[0].font.size = Pt(fonts["body_size"])
                 
+                # Check if there's a corresponding publication for this project
+                corresponding_pub = None
+                for pub in resume_data.publications:
+                    if pub.title.lower() == project.name.lower():
+                        corresponding_pub = pub
+                        break
+                
+                # Add publication details if found
+                if corresponding_pub:
+                    if corresponding_pub.journal:
+                        journal_para = doc.add_paragraph(f"    • Published in: {corresponding_pub.journal} ({corresponding_pub.year})")
+                        journal_para.runs[0].font.size = Pt(fonts["body_size"])
+                    if corresponding_pub.url:
+                        pub_url_para = doc.add_paragraph(f"    • Publication URL: {corresponding_pub.url}")
+                        pub_url_para.runs[0].font.size = Pt(fonts["body_size"])
+                
                 doc.add_paragraph()  # Add spacing
-        
-        # Publications
-        if resume_data.publications:
-            doc.add_heading('PUBLICATIONS', level=1)
+            
+            # Add standalone publications (those without corresponding projects)
             for pub in resume_data.publications:
-                pub_para = doc.add_paragraph()
-                pub_text = pub['title']
-                if pub.get('journal'):
-                    pub_text += f" - {pub['journal']}"
-                if pub.get('year'):
-                    pub_text += f" ({pub['year']})"
-                pub_para.add_run(pub_text).bold = True
-                pub_para.runs[0].font.size = Pt(fonts["body_size"])
+                # Check if this publication already has a corresponding project
+                has_corresponding_project = any(project.name.lower() == pub.title.lower() for project in resume_data.projects)
                 
-                if pub.get('authors'):
-                    authors_para = doc.add_paragraph(f"Authors: {pub['authors']}")
-                    authors_para.runs[0].font.size = Pt(fonts["body_size"])
-                
-                if pub.get('url'):
-                    url_para = doc.add_paragraph(f"URL: {pub['url']}")
-                    url_para.runs[0].font.size = Pt(fonts["body_size"])
-                
-                doc.add_paragraph()  # Add spacing
+                if not has_corresponding_project:
+                    pub_para = doc.add_paragraph()
+                    pub_text = f"{pub.title} (Publication)"
+                    if pub.journal:
+                        pub_text += f" - {pub.journal}"
+                    if pub.year:
+                        pub_text += f" ({pub.year})"
+                    pub_para.add_run(pub_text).bold = True
+                    pub_para.runs[0].font.size = Pt(fonts["body_size"])
+                    
+                    if pub.url:
+                        url_para = doc.add_paragraph(f"    • URL: {pub.url}")
+                        url_para.runs[0].font.size = Pt(fonts["body_size"])
+                    
+                    doc.add_paragraph()  # Add spacing
         
         # Certifications
         if resume_data.certifications:
             doc.add_heading('CERTIFICATIONS', level=1)
             for cert in resume_data.certifications:
                 cert_para = doc.add_paragraph()
-                cert_text = f"{cert['name']} - {cert['issuer']}"
-                if cert.get('year'):
-                    cert_text += f" ({cert['year']})"
-                if cert.get('expiry'):
-                    cert_text += f" | Expires: {cert['expiry']}"
+                cert_text = f"{cert.name} - {cert.issuer}"
+                if cert.year:
+                    cert_text += f" ({cert.year})"
+                if cert.expiry:
+                    cert_text += f" | Expires: {cert.expiry}"
                 cert_para.add_run(cert_text).bold = True
                 cert_para.runs[0].font.size = Pt(fonts["body_size"])
         
-        # Volunteer Experience
-        if resume_data.volunteer_experience:
-            doc.add_heading('VOLUNTEER EXPERIENCE', level=1)
-            for vol in resume_data.volunteer_experience:
-                vol_para = doc.add_paragraph()
-                vol_text = f"{vol['position']} - {vol['organization']}"
-                if vol.get('duration'):
-                    vol_text += f" ({vol['duration']})"
-                vol_para.add_run(vol_text).bold = True
-                vol_para.runs[0].font.size = Pt(fonts["body_size"])
-                
-                if vol.get('description'):
-                    desc_para = doc.add_paragraph(vol['description'])
-                    desc_para.runs[0].font.size = Pt(fonts["body_size"])
-                
-                doc.add_paragraph()  # Add spacing
         
         # Awards
         if resume_data.awards:
@@ -818,16 +999,16 @@ def generate_docx(resume_data: ResumeData) -> bytes:
             doc.add_heading('REFERENCES', level=1)
             for ref in resume_data.references:
                 ref_para = doc.add_paragraph()
-                ref_text = ref['name']
-                if ref.get('title'):
-                    ref_text += f", {ref['title']}"
-                if ref.get('company'):
-                    ref_text += f" at {ref['company']}"
+                ref_text = ref.name
+                if ref.title:
+                    ref_text += f", {ref.title}"
+                if ref.company:
+                    ref_text += f" at {ref.company}"
                 ref_para.add_run(ref_text).bold = True
                 ref_para.runs[0].font.size = Pt(fonts["body_size"])
                 
-                if ref.get('contact'):
-                    contact_para = doc.add_paragraph(ref['contact'])
+                if ref.contact:
+                    contact_para = doc.add_paragraph(ref.contact)
                     contact_para.runs[0].font.size = Pt(fonts["body_size"])
                 
                 doc.add_paragraph()  # Add spacing
@@ -845,49 +1026,6 @@ def generate_docx(resume_data: ResumeData) -> bytes:
 async def root():
     """Health check endpoint."""
     return {"message": "Resume Text Extractor API is running"}
-
-@app.post("/extract-resume-text")
-async def extract_resume_text(file: UploadFile = File(...)):
-    """
-    Extract text content from uploaded resume file.
-    Supports PDF and DOCX formats.
-    """
-    # Validate file type
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
-    
-    file_extension = file.filename.lower().split('.')[-1]
-    
-    if file_extension not in ['pdf', 'docx']:
-        raise HTTPException(
-            status_code=400, 
-            detail="Unsupported file type. Please upload a PDF or DOCX file."
-        )
-    
-    # Read file content
-    try:
-        file_content = await file.read()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error reading file: {str(e)}")
-    
-    # Extract text based on file type
-    try:
-        if file_extension == 'pdf':
-            extracted_text = extract_text_from_pdf(file_content)
-        elif file_extension == 'docx':
-            extracted_text = extract_text_from_docx(file_content)
-        
-        return {
-            "filename": file.filename,
-            "file_type": file_extension,
-            "text_content": extracted_text,
-            "success": True
-        }
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 @app.post("/parse-resume", response_model=ParsedResumeResponse)
 async def parse_resume(file: UploadFile = File(...)):

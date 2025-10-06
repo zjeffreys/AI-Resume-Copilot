@@ -47,8 +47,8 @@ Once the server is running, you can access:
 ### GET /
 Health check endpoint.
 
-### POST /extract-resume-text
-Extract text from uploaded resume file.
+### POST /parse-resume
+Parse uploaded resume file and return structured data.
 
 **Parameters:**
 - `file`: Upload file (PDF or DOCX)
@@ -56,10 +56,46 @@ Extract text from uploaded resume file.
 **Response:**
 ```json
 {
-  "filename": "resume.pdf",
-  "file_type": "pdf",
-  "text_content": "Extracted text content...",
-  "success": true
+  "success": true,
+  "data": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+1-234-567-8900",
+    "location": "New York, NY",
+    "summary": "Experienced software engineer...",
+    "experience": [...],
+    "education": [...],
+    "skills": [...]
+  },
+  "message": "Resume parsed successfully"
+}
+```
+
+### POST /analyze-ats
+Analyze resume against job description using ATS simulation.
+
+**Parameters:**
+- `resume_data`: Structured resume data
+- `job_description`: Job description text
+
+**Response:**
+```json
+{
+  "success": true,
+  "score": {
+    "overall_score": 85,
+    "keyword_match_score": 78,
+    "experience_relevance": 90,
+    "education_fit": 88,
+    "skills_alignment": 82
+  },
+  "insights": [...],
+  "recommendations": [...],
+  "matched_keywords": [...],
+  "missing_keywords": [...],
+  "experience_gaps": [...],
+  "strengths": [...],
+  "message": "ATS analysis completed successfully"
 }
 ```
 

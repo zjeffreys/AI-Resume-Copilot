@@ -16,7 +16,7 @@ interface ResumeData {
     company: string;
     position: string;
     duration: string;
-    description: string;
+    description: string[];
   }>;
   education: Array<{
     institution: string;
@@ -35,7 +35,7 @@ interface ResumeData {
   }>;
   projects: Array<{
     name: string;
-    description: string;
+    description: string[];
     technologies: string;
     url?: string;
     duration?: string;
@@ -51,7 +51,7 @@ interface ResumeData {
     position: string;
     organization: string;
     duration: string;
-    description: string;
+    description: string[];
   }>;
   awards: string[];
   references: Array<{
@@ -148,7 +148,6 @@ export default function Home() {
       if (result.success) {
         setResumeData(result.data);
         setActiveTab('display');
-        alert('Resume parsed successfully! Please review and edit the information as needed.');
       } else {
         throw new Error(result.message || 'Failed to parse resume');
       }
@@ -282,7 +281,10 @@ OPTIMIZATION NOTES:
     resumeText += `PROFESSIONAL EXPERIENCE\n`;
     data.experience.forEach(exp => {
       resumeText += `${exp.position} | ${exp.company} | ${exp.duration}\n`;
-      resumeText += `${exp.description}\n\n`;
+      exp.description.forEach(bullet => {
+        resumeText += `• ${bullet}\n`;
+      });
+      resumeText += `\n`;
     });
     
     resumeText += `EDUCATION\n`;
@@ -300,7 +302,9 @@ OPTIMIZATION NOTES:
         resumeText += `${project.name}`;
         if (project.duration) resumeText += ` (${project.duration})`;
         resumeText += '\n';
-        resumeText += `${project.description}\n`;
+        project.description.forEach(bullet => {
+          resumeText += `• ${bullet}\n`;
+        });
         resumeText += `Technologies: ${project.technologies}\n`;
         if (project.url) resumeText += `URL: ${project.url}\n`;
         resumeText += '\n';
@@ -333,7 +337,10 @@ OPTIMIZATION NOTES:
       resumeText += '\nVOLUNTEER EXPERIENCE\n';
       data.volunteer_experience.forEach(vol => {
         resumeText += `${vol.position} - ${vol.organization} (${vol.duration})\n`;
-        resumeText += `${vol.description}\n\n`;
+        vol.description.forEach(bullet => {
+          resumeText += `• ${bullet}\n`;
+        });
+        resumeText += `\n`;
       });
     }
     
@@ -529,25 +536,18 @@ OPTIMIZATION NOTES:
 
                   {/* Header */}
                   <div className="text-center mb-8 border-b border-gray-200 dark:border-gray-300 pb-6">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-900 mb-2">{resumeData.name}</h1>
-                    <div className="text-gray-700 dark:text-gray-700 space-y-1">
-                      <p className="text-lg">{resumeData.email}</p>
-                      {resumeData.phone && <p className="text-lg">{resumeData.phone}</p>}
-                      {resumeData.location && <p className="text-lg">{resumeData.location}</p>}
-                      <div className="flex justify-center gap-4 mt-2">
-                        {resumeData.github_profile && (
-                          <a href={resumeData.github_profile} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                            GitHub
-                          </a>
-                        )}
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-900 mb-3">{resumeData.name.toUpperCase()}</h1>
+                    <div className="text-gray-700 dark:text-gray-700 text-lg">
+                      <div className="flex justify-center items-center gap-2 flex-wrap">
+                        {resumeData.location && <span>{resumeData.location}</span>}
+                        {resumeData.location && resumeData.phone && <span>•</span>}
+                        {resumeData.phone && <span>{resumeData.phone}</span>}
+                        {resumeData.phone && resumeData.email && <span>•</span>}
+                        {resumeData.email && <span>{resumeData.email}</span>}
+                        {resumeData.email && resumeData.linkedin_profile && <span>•</span>}
                         {resumeData.linkedin_profile && (
                           <a href={resumeData.linkedin_profile} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                            LinkedIn
-                          </a>
-                        )}
-                        {resumeData.website && (
-                          <a href={resumeData.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                            Website
+                            {resumeData.linkedin_profile}
                           </a>
                         )}
                       </div>
@@ -556,38 +556,58 @@ OPTIMIZATION NOTES:
 
                   {/* Professional Summary */}
                   <div className="mb-8">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
-                      PROFESSIONAL SUMMARY
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
+                      SUMMARY
                     </h2>
                     <p className="text-gray-800 dark:text-gray-800 leading-relaxed">
                       {resumeData.summary}
                     </p>
                   </div>
 
-                  {/* Skills */}
+                  {/* Skills & Other */}
                   <div className="mb-8">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
-                      TECHNICAL SKILLS
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
+                      SKILLS & OTHER
                     </h2>
-                    <p className="text-gray-800 dark:text-gray-800">
-                      {resumeData.skills.join(' • ')}
-                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="font-bold text-gray-900 dark:text-gray-900">Skills: </span>
+                        <span className="text-gray-800 dark:text-gray-800">{resumeData.skills.join(', ')}</span>
+                      </div>
+                      {resumeData.volunteer_experience && resumeData.volunteer_experience.length > 0 && (
+                        <div>
+                          <span className="font-bold text-gray-900 dark:text-gray-900">Volunteering: </span>
+                          <span className="text-gray-800 dark:text-gray-800">
+                            {resumeData.volunteer_experience.map(vol => 
+                              `${vol.position} at ${vol.organization} (${vol.duration})`
+                            ).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Experience */}
                   <div className="mb-8">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-4 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
                       PROFESSIONAL EXPERIENCE
                     </h2>
                     <div className="space-y-6">
                       {resumeData.experience.map((exp, index) => (
                         <div key={index}>
-                          <div className="flex justify-between items-start mb-2">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{exp.position}</h3>
+                          <div className="flex justify-between items-start mb-1">
+                            <div>
+                              <span className="font-bold text-gray-900 dark:text-gray-900">{exp.company}</span>
+                              <span className="text-gray-800 dark:text-gray-800 ml-1">{resumeData.location}</span>
+                            </div>
                             <span className="text-gray-700 dark:text-gray-700 font-medium">{exp.duration}</span>
                           </div>
-                          <p className="text-gray-800 dark:text-gray-800 font-medium mb-2">{exp.company}</p>
-                          <p className="text-gray-800 dark:text-gray-800 leading-relaxed">{exp.description}</p>
+                          <p className="text-gray-800 dark:text-gray-800 mb-2 ml-4">{exp.position}</p>
+                          <ul className="text-gray-800 dark:text-gray-800 leading-relaxed list-disc list-inside ml-4">
+                            {exp.description.map((bullet, bulletIndex) => (
+                              <li key={bulletIndex} className="mb-1">{bullet}</li>
+                            ))}
+                          </ul>
                         </div>
                       ))}
                     </div>
@@ -595,72 +615,107 @@ OPTIMIZATION NOTES:
 
                   {/* Education */}
                   <div className="mb-8">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
                       EDUCATION
                     </h2>
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                       {resumeData.education.map((edu, index) => (
                         <div key={index}>
-                          <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{edu.degree}</h3>
+                          <div className="flex justify-between items-start mb-1">
+                            <div>
+                              <span className="font-bold text-gray-900 dark:text-gray-900">{edu.institution}</span>
+                              <span className="text-gray-800 dark:text-gray-800 ml-1">{resumeData.location}</span>
+                            </div>
                             <span className="text-gray-700 dark:text-gray-700 font-medium">{edu.year}</span>
                           </div>
-                          <p className="text-gray-800 dark:text-gray-800">{edu.institution}</p>
-                          {edu.gpa && <p className="text-gray-700 dark:text-gray-700 text-sm">GPA: {edu.gpa}</p>}
-                          {edu.relevant_coursework && <p className="text-gray-700 dark:text-gray-700 text-sm">Relevant Coursework: {edu.relevant_coursework}</p>}
+                          <p className="text-gray-800 dark:text-gray-800 mb-2 ml-4">{edu.degree}</p>
+                          {(edu.gpa || edu.relevant_coursework) && (
+                            <ul className="text-gray-800 dark:text-gray-800 leading-relaxed list-disc list-inside ml-4">
+                              {edu.gpa && <li className="mb-1">Awards: {edu.gpa}</li>}
+                              {edu.relevant_coursework && <li className="mb-1">{edu.relevant_coursework}</li>}
+                            </ul>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Projects */}
-                  {resumeData.projects && resumeData.projects.length > 0 && (
+
+                  {/* Projects (including Publications) */}
+                  {(resumeData.projects && resumeData.projects.length > 0) || (resumeData.publications && resumeData.publications.length > 0) ? (
                     <div className="mb-8">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 mb-3 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
                         PROJECTS
                       </h2>
                       <div className="space-y-4">
-                        {resumeData.projects.map((project, index) => (
-                          <div key={index}>
-                            <div className="flex justify-between items-start mb-2">
-                              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{project.name}</h3>
-                              {project.duration && <span className="text-gray-700 dark:text-gray-700 font-medium">{project.duration}</span>}
+                        {/* Regular Projects with corresponding publications */}
+                        {resumeData.projects && resumeData.projects.map((project, index) => {
+                          // Check if there's a corresponding publication for this project
+                          const correspondingPub = resumeData.publications?.find(pub => 
+                            pub.title.toLowerCase() === project.name.toLowerCase()
+                          );
+                          
+                          return (
+                            <div key={index}>
+                              <div className="flex justify-between items-start mb-2">
+                                <h3 className="text-base font-bold text-gray-900 dark:text-gray-900">{project.name}</h3>
+                                <span className="text-gray-700 dark:text-gray-700 text-sm">{project.duration}</span>
+                              </div>
+                              <ul className="list-disc list-inside space-y-1 ml-4">
+                                {project.description.map((bullet, bulletIndex) => (
+                                  <li key={bulletIndex} className="text-gray-800 dark:text-gray-800 text-sm">
+                                    {bullet}
+                                  </li>
+                                ))}
+                                {/* Add publication details if found */}
+                                {correspondingPub && (
+                                  <>
+                                    {correspondingPub.journal && (
+                                      <li className="text-gray-800 dark:text-gray-800 text-sm">
+                                        Published in: {correspondingPub.journal} ({correspondingPub.year})
+                                      </li>
+                                    )}
+                                  </>
+                                )}
+                              </ul>
+                              <div className="ml-4 mt-2">
+                                {project.url && (
+                                  <a href={project.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm mr-4">
+                                    View Project →
+                                  </a>
+                                )}
+                                {correspondingPub?.url && (
+                                  <a href={correspondingPub.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm">
+                                    View Publication →
+                                  </a>
+                                )}
+                              </div>
                             </div>
-                            <p className="text-gray-800 dark:text-gray-800 mb-2">{project.description}</p>
-                            <p className="text-gray-700 dark:text-gray-700 text-sm mb-2">Technologies: {project.technologies}</p>
-                            {project.url && (
-                              <a href={project.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm">
-                                View Project →
-                              </a>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
+                        
+                        {/* Standalone Publications (those without corresponding projects) */}
+                        {resumeData.publications && resumeData.publications
+                          .filter(pub => !resumeData.projects?.some(project => 
+                            project.name.toLowerCase() === pub.title.toLowerCase()
+                          ))
+                          .map((pub, index) => (
+                            <div key={`pub-${index}`}>
+                              <div className="flex justify-between items-start mb-2">
+                                <h3 className="text-base font-bold text-gray-900 dark:text-gray-900">{pub.title} (Publication)</h3>
+                                <span className="text-gray-700 dark:text-gray-700 text-sm">{pub.year}</span>
+                              </div>
+                              <p className="text-gray-800 dark:text-gray-800 text-sm mb-1">{pub.journal}</p>
+                              {pub.url && (
+                                <a href={pub.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm">
+                                  View Publication →
+                                </a>
+                              )}
+                            </div>
+                          ))}
                       </div>
                     </div>
-                  )}
-
-                  {/* Publications */}
-                  {resumeData.publications && resumeData.publications.length > 0 && (
-                    <div className="mb-8">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
-                        PUBLICATIONS
-                      </h2>
-                      <div className="space-y-3">
-                        {resumeData.publications.map((pub, index) => (
-                          <div key={index}>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{pub.title}</h3>
-                            <p className="text-gray-800 dark:text-gray-800">{pub.journal} ({pub.year})</p>
-                            <p className="text-gray-700 dark:text-gray-700 text-sm">Authors: {pub.authors}</p>
-                            {pub.url && (
-                              <a href={pub.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm">
-                                View Publication →
-                              </a>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  ) : null}
 
                   {/* Certifications */}
                   {resumeData.certifications && resumeData.certifications.length > 0 && (
@@ -683,26 +738,6 @@ OPTIMIZATION NOTES:
                     </div>
                   )}
 
-                  {/* Volunteer Experience */}
-                  {resumeData.volunteer_experience && resumeData.volunteer_experience.length > 0 && (
-                    <div className="mb-8">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-900 mb-3 border-b-2 border-gray-300 dark:border-gray-400 pb-1">
-                        VOLUNTEER EXPERIENCE
-                      </h2>
-                      <div className="space-y-4">
-                        {resumeData.volunteer_experience.map((vol, index) => (
-                          <div key={index}>
-                            <div className="flex justify-between items-start mb-2">
-                              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-900">{vol.position}</h3>
-                              <span className="text-gray-700 dark:text-gray-700 font-medium">{vol.duration}</span>
-                            </div>
-                            <p className="text-gray-800 dark:text-gray-800 font-medium mb-2">{vol.organization}</p>
-                            <p className="text-gray-800 dark:text-gray-800 leading-relaxed">{vol.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Awards */}
                   {resumeData.awards && resumeData.awards.length > 0 && (
