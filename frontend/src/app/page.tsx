@@ -107,7 +107,22 @@ interface SectionOptimizationResponse {
   message: string;
 }
 
-type EditingDataType = string | string[] | ResumeData[keyof ResumeData] | null;
+// Specific types for each editing section
+type EditingDataType = 
+  | { type: 'summary'; data: string }
+  | { type: 'skills'; data: string[] }
+  | { type: 'experience'; data: ResumeData['experience'] }
+  | { type: 'education'; data: ResumeData['education'] }
+  | { type: 'projects'; data: ResumeData['projects'] }
+  | { type: 'publications'; data: ResumeData['publications'] }
+  | { type: 'certifications'; data: ResumeData['certifications'] }
+  | { type: 'volunteer_experience'; data: ResumeData['volunteer_experience'] }
+  | { type: 'awards'; data: string[] }
+  | { type: 'languages'; data: string[] }
+  | { type: 'references'; data: ResumeData['references'] }
+  | { type: 'contact'; data: Pick<ResumeData, 'name' | 'email' | 'phone' | 'location' | 'github_profile' | 'linkedin_profile' | 'website'> }
+  | null;
+
 type SectionDataType = string | string[] | unknown[] | null;
 
 export default function Home() {
@@ -249,74 +264,53 @@ export default function Home() {
 
     const updatedResumeData = { ...resumeData };
     
-    switch (editingSection) {
+    switch (editingData.type) {
       case 'summary':
-        updatedResumeData.summary = editingData;
+        updatedResumeData.summary = editingData.data;
         break;
       case 'skills':
-        // Convert string to array when saving
-        updatedResumeData.skills = typeof editingData === 'string' 
-          ? editingData.split(',').map(s => s.trim()).filter(s => s)
-          : editingData;
+        updatedResumeData.skills = editingData.data;
         break;
       case 'experience':
-        // Process experience data to handle description strings
-        const processedExperience = (editingData as ResumeData['experience']).map((exp) => ({
-          ...exp,
-          description: typeof exp.description === 'string' 
-            ? exp.description.split('\n').filter((line: string) => line.trim())
-            : exp.description
-        }));
-        updatedResumeData.experience = processedExperience;
+        // Experience data is already processed in the form
+        updatedResumeData.experience = editingData.data;
         break;
       case 'education':
-        updatedResumeData.education = editingData;
+        updatedResumeData.education = editingData.data;
         break;
       case 'projects':
-        // Process projects data to handle description strings
-        const processedProjects = (editingData as ResumeData['projects']).map((project) => ({
-          ...project,
-          description: typeof project.description === 'string' 
-            ? project.description.split('\n').filter((line: string) => line.trim())
-            : project.description
-        }));
-        updatedResumeData.projects = processedProjects;
+        // Projects data is already processed in the form
+        updatedResumeData.projects = editingData.data;
         break;
       case 'publications':
-        updatedResumeData.publications = editingData;
+        updatedResumeData.publications = editingData.data;
         break;
       case 'certifications':
-        updatedResumeData.certifications = editingData;
+        updatedResumeData.certifications = editingData.data;
         break;
       case 'volunteer_experience':
-        updatedResumeData.volunteer_experience = editingData;
+        updatedResumeData.volunteer_experience = editingData.data;
         break;
       case 'awards':
-        // Convert string to array when saving
-        updatedResumeData.awards = typeof editingData === 'string' 
-          ? editingData.split('\n').filter(line => line.trim())
-          : editingData;
+        updatedResumeData.awards = editingData.data;
         break;
       case 'languages':
-        // Convert string to array when saving
-        updatedResumeData.languages = typeof editingData === 'string' 
-          ? editingData.split(',').map(s => s.trim()).filter(s => s)
-          : editingData;
+        updatedResumeData.languages = editingData.data;
         break;
       case 'references':
-        updatedResumeData.references = editingData;
+        updatedResumeData.references = editingData.data;
         break;
       case 'contact':
-        updatedResumeData.name = editingData.name;
-        updatedResumeData.email = editingData.email;
-        updatedResumeData.phone = editingData.phone;
-        updatedResumeData.location = editingData.location;
-        updatedResumeData.github_profile = editingData.github_profile;
-        updatedResumeData.linkedin_profile = editingData.linkedin_profile;
-        updatedResumeData.website = editingData.website;
+        updatedResumeData.name = editingData.data.name;
+        updatedResumeData.email = editingData.data.email;
+        updatedResumeData.phone = editingData.data.phone;
+        updatedResumeData.location = editingData.data.location;
+        updatedResumeData.github_profile = editingData.data.github_profile;
+        updatedResumeData.linkedin_profile = editingData.data.linkedin_profile;
+        updatedResumeData.website = editingData.data.website;
         break;
     }
-
+    
     setResumeData(updatedResumeData);
     setEditingSection(null);
     setEditingData(null);
@@ -638,74 +632,74 @@ export default function Home() {
     switch (optimizingSection) {
       case 'summary':
         // Unwrap from object format
-        updatedResumeData.summary = result.optimized_section.content || result.optimized_section;
+        updatedResumeData.summary = (result.optimized_section as unknown as { content?: string }).content || (result.optimized_section as unknown as string);
         break;
       case 'skills':
         // Unwrap from object format
-        updatedResumeData.skills = result.optimized_section.skills || result.optimized_section;
+        updatedResumeData.skills = (result.optimized_section as unknown as { skills?: string[] }).skills || (result.optimized_section as unknown as string[]);
         break;
       case 'experience':
         // Unwrap from object format
-        if (itemIndex !== null && result.optimized_section.experience) {
-          updatedResumeData.experience[itemIndex] = result.optimized_section.experience[0];
+        if (itemIndex !== null && (result.optimized_section as unknown as { experience?: ResumeData['experience'] }).experience) {
+          updatedResumeData.experience[itemIndex] = (result.optimized_section as unknown as { experience: ResumeData['experience'] }).experience[0];
         } else {
-          updatedResumeData.experience = result.optimized_section.experience || result.optimized_section;
+          updatedResumeData.experience = (result.optimized_section as unknown as { experience?: ResumeData['experience'] }).experience || (result.optimized_section as unknown as ResumeData['experience']);
         }
         break;
       case 'education':
         // Unwrap from object format
-        if (itemIndex !== null && result.optimized_section.education) {
-          updatedResumeData.education[itemIndex] = result.optimized_section.education[0];
+        if (itemIndex !== null && (result.optimized_section as unknown as { education?: ResumeData['education'] }).education) {
+          updatedResumeData.education[itemIndex] = (result.optimized_section as unknown as { education: ResumeData['education'] }).education[0];
         } else {
-          updatedResumeData.education = result.optimized_section.education || result.optimized_section;
+          updatedResumeData.education = (result.optimized_section as unknown as { education?: ResumeData['education'] }).education || (result.optimized_section as unknown as ResumeData['education']);
         }
         break;
       case 'projects':
         // Unwrap from object format
-        if (itemIndex !== null && result.optimized_section.projects) {
-          updatedResumeData.projects[itemIndex] = result.optimized_section.projects[0];
+        if (itemIndex !== null && (result.optimized_section as unknown as { projects?: ResumeData['projects'] }).projects) {
+          updatedResumeData.projects[itemIndex] = (result.optimized_section as unknown as { projects: ResumeData['projects'] }).projects[0];
         } else {
-          updatedResumeData.projects = result.optimized_section.projects || result.optimized_section;
+          updatedResumeData.projects = (result.optimized_section as unknown as { projects?: ResumeData['projects'] }).projects || (result.optimized_section as unknown as ResumeData['projects']);
         }
         break;
       case 'publications':
         // Unwrap from object format
-        if (itemIndex !== null && result.optimized_section.publications) {
-          updatedResumeData.publications[itemIndex] = result.optimized_section.publications[0];
+        if (itemIndex !== null && (result.optimized_section as unknown as { publications?: ResumeData['publications'] }).publications) {
+          updatedResumeData.publications[itemIndex] = (result.optimized_section as unknown as { publications: ResumeData['publications'] }).publications[0];
         } else {
-          updatedResumeData.publications = result.optimized_section.publications || result.optimized_section;
+          updatedResumeData.publications = (result.optimized_section as unknown as { publications?: ResumeData['publications'] }).publications || (result.optimized_section as unknown as ResumeData['publications']);
         }
         break;
       case 'certifications':
         // Unwrap from object format
-        if (itemIndex !== null && result.optimized_section.certifications) {
-          updatedResumeData.certifications[itemIndex] = result.optimized_section.certifications[0];
+        if (itemIndex !== null && (result.optimized_section as unknown as { certifications?: ResumeData['certifications'] }).certifications) {
+          updatedResumeData.certifications[itemIndex] = (result.optimized_section as unknown as { certifications: ResumeData['certifications'] }).certifications[0];
         } else {
-          updatedResumeData.certifications = result.optimized_section.certifications || result.optimized_section;
+          updatedResumeData.certifications = (result.optimized_section as unknown as { certifications?: ResumeData['certifications'] }).certifications || (result.optimized_section as unknown as ResumeData['certifications']);
         }
         break;
       case 'volunteer_experience':
         // Unwrap from object format
-        if (itemIndex !== null && result.optimized_section.volunteer_experience) {
-          updatedResumeData.volunteer_experience[itemIndex] = result.optimized_section.volunteer_experience[0];
+        if (itemIndex !== null && (result.optimized_section as unknown as { volunteer_experience?: ResumeData['volunteer_experience'] }).volunteer_experience) {
+          updatedResumeData.volunteer_experience[itemIndex] = (result.optimized_section as unknown as { volunteer_experience: ResumeData['volunteer_experience'] }).volunteer_experience[0];
         } else {
-          updatedResumeData.volunteer_experience = result.optimized_section.volunteer_experience || result.optimized_section;
+          updatedResumeData.volunteer_experience = (result.optimized_section as unknown as { volunteer_experience?: ResumeData['volunteer_experience'] }).volunteer_experience || (result.optimized_section as unknown as ResumeData['volunteer_experience']);
         }
         break;
       case 'awards':
         // Unwrap from object format
-        updatedResumeData.awards = result.optimized_section.awards || result.optimized_section;
+        updatedResumeData.awards = (result.optimized_section as unknown as { awards?: string[] }).awards || (result.optimized_section as unknown as string[]);
         break;
       case 'languages':
         // Unwrap from object format
-        updatedResumeData.languages = result.optimized_section.languages || result.optimized_section;
+        updatedResumeData.languages = (result.optimized_section as unknown as { languages?: string[] }).languages || (result.optimized_section as unknown as string[]);
         break;
       case 'references':
         // Unwrap from object format
-        if (itemIndex !== null && result.optimized_section.references) {
-          updatedResumeData.references[itemIndex] = result.optimized_section.references[0];
+        if (itemIndex !== null && (result.optimized_section as unknown as { references?: ResumeData['references'] }).references) {
+          updatedResumeData.references[itemIndex] = (result.optimized_section as unknown as { references: ResumeData['references'] }).references[0];
         } else {
-          updatedResumeData.references = result.optimized_section.references || result.optimized_section;
+          updatedResumeData.references = (result.optimized_section as unknown as { references?: ResumeData['references'] }).references || (result.optimized_section as unknown as ResumeData['references']);
         }
         break;
     }
@@ -1066,13 +1060,16 @@ export default function Home() {
                       <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-900">{resumeData.name.toUpperCase()}</h1>
                       <button
                         onClick={() => startEditing('contact', {
-                          name: resumeData.name,
-                          email: resumeData.email,
-                          phone: resumeData.phone,
-                          location: resumeData.location,
-                          github_profile: resumeData.github_profile,
-                          linkedin_profile: resumeData.linkedin_profile,
-                          website: resumeData.website
+                          type: 'contact',
+                          data: {
+                            name: resumeData.name,
+                            email: resumeData.email,
+                            phone: resumeData.phone,
+                            location: resumeData.location,
+                            github_profile: resumeData.github_profile,
+                            linkedin_profile: resumeData.linkedin_profile,
+                            website: resumeData.website
+                          }
                         })}
                         className="text-gray-500 hover:text-blue-600 transition-colors"
                         title="Edit contact information"
@@ -1081,54 +1078,54 @@ export default function Home() {
                       </button>
                     </div>
                     
-                    {editingSection === 'contact' ? (
+                    {editingSection === 'contact' && editingData?.type === 'contact' ? (
                       <div className="space-y-3 max-w-md mx-auto">
                         <input
                           type="text"
-                          value={editingData.name}
-                          onChange={(e) => setEditingData({...editingData, name: e.target.value})}
+                          value={editingData.data.name}
+                          onChange={(e) => setEditingData({...editingData, data: {...editingData.data, name: e.target.value}})}
                           className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                           placeholder="Full Name"
                         />
                         <input
                           type="email"
-                          value={editingData.email}
-                          onChange={(e) => setEditingData({...editingData, email: e.target.value})}
+                          value={editingData.data.email}
+                          onChange={(e) => setEditingData({...editingData, data: {...editingData.data, email: e.target.value}})}
                           className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                           placeholder="Email"
                         />
                         <input
                           type="text"
-                          value={editingData.phone}
-                          onChange={(e) => setEditingData({...editingData, phone: e.target.value})}
+                          value={editingData.data.phone}
+                          onChange={(e) => setEditingData({...editingData, data: {...editingData.data, phone: e.target.value}})}
                           className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                           placeholder="Phone"
                         />
                         <input
                           type="text"
-                          value={editingData.location}
-                          onChange={(e) => setEditingData({...editingData, location: e.target.value})}
+                          value={editingData.data.location}
+                          onChange={(e) => setEditingData({...editingData, data: {...editingData.data, location: e.target.value}})}
                           className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                           placeholder="Location"
                         />
                         <input
                           type="text"
-                          value={editingData.github_profile}
-                          onChange={(e) => setEditingData({...editingData, github_profile: e.target.value})}
+                          value={editingData.data.github_profile}
+                          onChange={(e) => setEditingData({...editingData, data: {...editingData.data, github_profile: e.target.value}})}
                           className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                           placeholder="GitHub Profile"
                         />
                         <input
                           type="text"
-                          value={editingData.linkedin_profile}
-                          onChange={(e) => setEditingData({...editingData, linkedin_profile: e.target.value})}
+                          value={editingData.data.linkedin_profile}
+                          onChange={(e) => setEditingData({...editingData, data: {...editingData.data, linkedin_profile: e.target.value}})}
                           className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                           placeholder="LinkedIn Profile"
                         />
                         <input
                           type="text"
-                          value={editingData.website}
-                          onChange={(e) => setEditingData({...editingData, website: e.target.value})}
+                          value={editingData.data.website}
+                          onChange={(e) => setEditingData({...editingData, data: {...editingData.data, website: e.target.value}})}
                           className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                           placeholder="Website"
                         />
@@ -1183,7 +1180,7 @@ export default function Home() {
                           <Target className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => startEditing('summary', resumeData.summary)}
+                          onClick={() => startEditing('summary', { type: 'summary', data: resumeData.summary })}
                           className="text-gray-500 hover:text-blue-600 transition-colors"
                           title="Edit summary"
                         >
@@ -1192,11 +1189,11 @@ export default function Home() {
                       </div>
                     </div>
                     
-                    {editingSection === 'summary' ? (
+                    {editingSection === 'summary' && editingData?.type === 'summary' ? (
                       <div className="space-y-3">
                         <textarea
-                          value={editingData}
-                          onChange={(e) => setEditingData(e.target.value)}
+                          value={editingData.data}
+                          onChange={(e) => setEditingData({...editingData, data: e.target.value})}
                           className="w-full p-3 border border-gray-300 rounded-lg h-32 resize-none text-gray-900 bg-white"
                           placeholder="Professional summary..."
                         />
@@ -1239,7 +1236,7 @@ export default function Home() {
                           <Target className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => startEditing('skills', resumeData.skills)}
+                          onClick={() => startEditing('skills', { type: 'skills', data: resumeData.skills })}
                           className="text-gray-500 hover:text-blue-600 transition-colors"
                           title="Edit skills"
                         >
@@ -1248,15 +1245,15 @@ export default function Home() {
                       </div>
                     </div>
                     
-                    {editingSection === 'skills' ? (
+                    {editingSection === 'skills' && editingData?.type === 'skills' ? (
                       <div className="space-y-3">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Skills (comma-separated)</label>
                           <textarea
-                            value={Array.isArray(editingData) ? editingData.join(', ') : editingData}
+                            value={editingData.data.join(', ')}
                             onChange={(e) => {
                               // Keep the raw text for editing, only split when saving
-                              setEditingData(e.target.value);
+                              setEditingData({...editingData, data: e.target.value.split(',').map(s => s.trim()).filter(s => s)});
                             }}
                             className="w-full p-3 border border-gray-300 rounded-lg h-24 resize-none text-gray-900 bg-white"
                             placeholder="Python, JavaScript, React, Node.js..."
@@ -1314,7 +1311,7 @@ export default function Home() {
                           <Target className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => startEditing('experience', resumeData.experience)}
+                          onClick={() => startEditing('experience', { type: 'experience', data: resumeData.experience })}
                           className="text-gray-500 hover:text-blue-600 transition-colors"
                           title="Edit experience"
                         >
@@ -1323,14 +1320,14 @@ export default function Home() {
                       </div>
                     </div>
                     
-                    {editingSection === 'experience' ? (
+                    {editingSection === 'experience' && editingData?.type === 'experience' ? (
                       <div className="space-y-4">
-                        {(editingData as ResumeData['experience']).map((exp, index: number) => (
+                        {editingData.data.map((exp, index: number) => (
                           <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                             <button
                               onClick={() => {
-                                const newData = (editingData as ResumeData['experience']).filter((_, i: number) => i !== index);
-                                setEditingData(newData);
+                                const newData = editingData.data.filter((_, i: number) => i !== index);
+                                setEditingData({...editingData, data: newData});
                               }}
                               className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
                               title="Remove this experience"
@@ -1342,9 +1339,9 @@ export default function Home() {
                                 type="text"
                                 value={exp.company}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
+                                  const newData = [...editingData.data];
                                   newData[index].company = e.target.value;
-                                  setEditingData(newData);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                 placeholder="Company"
@@ -1353,9 +1350,9 @@ export default function Home() {
                                 type="text"
                                 value={exp.duration}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
+                                  const newData = [...editingData.data];
                                   newData[index].duration = e.target.value;
-                                  setEditingData(newData);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                 placeholder="Duration (e.g., 2020-2023)"
@@ -1365,9 +1362,9 @@ export default function Home() {
                               type="text"
                               value={exp.position}
                               onChange={(e) => {
-                                const newData = [...editingData];
+                                const newData = [...editingData.data];
                                 newData[index].position = e.target.value;
-                                setEditingData(newData);
+                                setEditingData({...editingData, data: newData});
                               }}
                               className="w-full p-2 border border-gray-300 rounded-lg mb-3 text-gray-900 bg-white"
                               placeholder="Position/Title"
@@ -1377,9 +1374,9 @@ export default function Home() {
                               <textarea
                                 value={Array.isArray(exp.description) ? exp.description.join('\n') : exp.description}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
-                                  newData[index].description = e.target.value;
-                                  setEditingData(newData);
+                                  const newData = [...editingData.data];
+                                  newData[index].description = e.target.value.split('\n').filter((line: string) => line.trim());
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="w-full p-2 border border-gray-300 rounded-lg h-24 resize-none text-gray-900 bg-white"
                                 placeholder="• Led development of key features&#10;• Improved performance by 50%&#10;• Mentored junior developers"
@@ -1390,8 +1387,8 @@ export default function Home() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
-                              const newData = [...editingData, { company: '', position: '', duration: '', description: [] }];
-                              setEditingData(newData);
+                              const newData = [...editingData.data, { company: '', position: '', duration: '', description: [] }];
+                              setEditingData({...editingData, data: newData});
                             }}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
                           >
@@ -1460,7 +1457,7 @@ export default function Home() {
                           <Target className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => startEditing('education', resumeData.education)}
+                          onClick={() => startEditing('education', { type: 'education', data: resumeData.education })}
                           className="text-gray-500 hover:text-blue-600 transition-colors"
                           title="Edit education"
                         >
@@ -1469,14 +1466,14 @@ export default function Home() {
                       </div>
                     </div>
                     
-                    {editingSection === 'education' ? (
+                    {editingSection === 'education' && editingData?.type === 'education' ? (
                       <div className="space-y-4">
-                        {(editingData as ResumeData['education']).map((edu, index: number) => (
+                        {editingData.data.map((edu, index: number) => (
                           <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                             <button
                               onClick={() => {
-                                const newData = (editingData as ResumeData['education']).filter((_, i: number) => i !== index);
-                                setEditingData(newData);
+                                const newData = editingData.data.filter((_, i: number) => i !== index);
+                                setEditingData({...editingData, data: newData});
                               }}
                               className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
                               title="Remove this education"
@@ -1488,9 +1485,9 @@ export default function Home() {
                                 type="text"
                                 value={edu.institution}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
+                                  const newData = [...editingData.data];
                                   newData[index].institution = e.target.value;
-                                  setEditingData(newData);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                 placeholder="Institution"
@@ -1499,9 +1496,9 @@ export default function Home() {
                                 type="text"
                                 value={edu.year}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
+                                  const newData = [...editingData.data];
                                   newData[index].year = e.target.value;
-                                  setEditingData(newData);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                 placeholder="Year"
@@ -1511,9 +1508,9 @@ export default function Home() {
                               type="text"
                               value={edu.degree}
                               onChange={(e) => {
-                                const newData = [...editingData];
+                                const newData = [...editingData.data];
                                 newData[index].degree = e.target.value;
-                                setEditingData(newData);
+                                setEditingData({...editingData, data: newData});
                               }}
                               className="w-full p-2 border border-gray-300 rounded-lg mb-3 text-gray-900 bg-white"
                               placeholder="Degree"
@@ -1523,9 +1520,9 @@ export default function Home() {
                                 type="text"
                                 value={edu.gpa || ''}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
+                                  const newData = [...editingData.data];
                                   newData[index].gpa = e.target.value;
-                                  setEditingData(newData);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                 placeholder="GPA/Awards"
@@ -1534,9 +1531,9 @@ export default function Home() {
                                 type="text"
                                 value={edu.relevant_coursework || ''}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
+                                  const newData = [...editingData.data];
                                   newData[index].relevant_coursework = e.target.value;
-                                  setEditingData(newData);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                 placeholder="Relevant Coursework"
@@ -1547,8 +1544,8 @@ export default function Home() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
-                              const newData = [...editingData, { institution: '', degree: '', year: '', gpa: '', relevant_coursework: '' }];
-                              setEditingData(newData);
+                              const newData = [...editingData.data, { institution: '', degree: '', year: '', gpa: '', relevant_coursework: '' }];
+                              setEditingData({...editingData, data: newData});
                             }}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
                           >
@@ -1611,7 +1608,7 @@ export default function Home() {
                             <Target className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => startEditing('projects', resumeData.projects)}
+                            onClick={() => startEditing('projects', { type: 'projects', data: resumeData.projects })}
                             className="text-gray-500 hover:text-blue-600 transition-colors"
                             title="Edit projects"
                           >
@@ -1619,14 +1616,14 @@ export default function Home() {
                           </button>
                         </div>
                       </div>
-                      {editingSection === 'projects' ? (
+                      {editingSection === 'projects' && editingData?.type === 'projects' ? (
                         <div className="space-y-4">
-                          {(editingData as ResumeData['projects']).map((project, index: number) => (
+                          {editingData.data.map((project, index: number) => (
                             <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                               <button
                                 onClick={() => {
-                                  const newData = (editingData as ResumeData['projects']).filter((_, i: number) => i !== index);
-                                  setEditingData(newData);
+                                  const newData = editingData.data.filter((_, i: number) => i !== index);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
                                 title="Remove this project"
@@ -1638,9 +1635,9 @@ export default function Home() {
                                   type="text"
                                   value={project.name}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].name = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Project Name"
@@ -1649,9 +1646,9 @@ export default function Home() {
                                   type="text"
                                   value={project.duration || ''}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].duration = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Duration"
@@ -1661,9 +1658,9 @@ export default function Home() {
                                 type="text"
                                 value={project.technologies || ''}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
+                                  const newData = [...editingData.data];
                                   newData[index].technologies = e.target.value;
-                                  setEditingData(newData);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="w-full p-2 border border-gray-300 rounded-lg mb-3 text-gray-900 bg-white"
                                 placeholder="Technologies Used"
@@ -1673,9 +1670,9 @@ export default function Home() {
                                 <textarea
                                   value={Array.isArray(project.description) ? project.description.join('\n') : project.description}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
-                                    newData[index].description = e.target.value;
-                                    setEditingData(newData);
+                                    const newData = [...editingData.data];
+                                    newData[index].description = e.target.value.split('\n').filter((line: string) => line.trim());
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="w-full p-2 border border-gray-300 rounded-lg h-24 resize-none text-gray-900 bg-white"
                                   placeholder="• Built a web application&#10;• Implemented user authentication&#10;• Deployed to cloud platform"
@@ -1685,9 +1682,9 @@ export default function Home() {
                                 type="text"
                                 value={project.url || ''}
                                 onChange={(e) => {
-                                  const newData = [...editingData];
+                                  const newData = [...editingData.data];
                                   newData[index].url = e.target.value;
-                                  setEditingData(newData);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="w-full p-2 border border-gray-300 rounded-lg mt-3 text-gray-900 bg-white"
                                 placeholder="Project URL"
@@ -1697,8 +1694,8 @@ export default function Home() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
-                                const newData = [...editingData, { name: '', description: [], technologies: '', url: '', duration: '' }];
-                                setEditingData(newData);
+                                const newData = [...editingData.data, { name: '', description: [], technologies: '', url: '', duration: '' }];
+                                setEditingData({...editingData, data: newData});
                               }}
                               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
                             >
@@ -1800,7 +1797,7 @@ export default function Home() {
                           CERTIFICATIONS
                         </h2>
                         <button
-                          onClick={() => startEditing('certifications', resumeData.certifications)}
+                          onClick={() => startEditing('certifications', { type: 'certifications', data: resumeData.certifications })}
                           className="text-gray-500 hover:text-blue-600 transition-colors"
                           title="Edit certifications"
                         >
@@ -1808,14 +1805,14 @@ export default function Home() {
                         </button>
                       </div>
                       
-                      {editingSection === 'certifications' ? (
+                      {editingSection === 'certifications' && editingData?.type === 'certifications' ? (
                         <div className="space-y-4">
-                          {(editingData as ResumeData['certifications']).map((cert, index: number) => (
+                          {editingData.data.map((cert, index: number) => (
                             <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                               <button
                                 onClick={() => {
-                                  const newData = (editingData as ResumeData['certifications']).filter((_, i: number) => i !== index);
-                                  setEditingData(newData);
+                                  const newData = editingData.data.filter((_, i: number) => i !== index);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
                                 title="Remove this certification"
@@ -1827,9 +1824,9 @@ export default function Home() {
                                   type="text"
                                   value={cert.name}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].name = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Certification Name"
@@ -1838,9 +1835,9 @@ export default function Home() {
                                   type="text"
                                   value={cert.year}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].year = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Year"
@@ -1851,9 +1848,9 @@ export default function Home() {
                                   type="text"
                                   value={cert.issuer}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].issuer = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Issuing Organization"
@@ -1862,9 +1859,9 @@ export default function Home() {
                                   type="text"
                                   value={cert.expiry || ''}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].expiry = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Expiry Date (optional)"
@@ -1875,8 +1872,8 @@ export default function Home() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
-                                const newData = [...editingData, { name: '', issuer: '', year: '', expiry: '' }];
-                                setEditingData(newData);
+                                const newData = [...editingData.data, { name: '', issuer: '', year: '', expiry: '' }];
+                                setEditingData({...editingData, data: newData});
                               }}
                               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
                             >
@@ -1924,7 +1921,7 @@ export default function Home() {
                           AWARDS & HONORS
                         </h2>
                         <button
-                          onClick={() => startEditing('awards', resumeData.awards)}
+                          onClick={() => startEditing('awards', { type: 'awards', data: resumeData.awards })}
                           className="text-gray-500 hover:text-blue-600 transition-colors"
                           title="Edit awards"
                         >
@@ -1932,15 +1929,15 @@ export default function Home() {
                         </button>
                       </div>
                       
-                      {editingSection === 'awards' ? (
+                      {editingSection === 'awards' && editingData?.type === 'awards' ? (
                         <div className="space-y-3">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Awards (one per line)</label>
                             <textarea
-                              value={Array.isArray(editingData) ? editingData.join('\n') : editingData}
+                              value={editingData.data.join('\n')}
                               onChange={(e) => {
                                 // Keep the raw text for editing, only split when saving
-                                setEditingData(e.target.value);
+                                setEditingData({...editingData, data: e.target.value.split('\n').filter(line => line.trim())});
                               }}
                               className="w-full p-3 border border-gray-300 rounded-lg h-32 resize-none text-gray-900 bg-white"
                               placeholder="• Dean's List 2020-2022&#10;• Best Project Award 2021&#10;• Outstanding Student Recognition"
@@ -1981,7 +1978,7 @@ export default function Home() {
                           LANGUAGES
                         </h2>
                         <button
-                          onClick={() => startEditing('languages', resumeData.languages)}
+                          onClick={() => startEditing('languages', { type: 'languages', data: resumeData.languages })}
                           className="text-gray-500 hover:text-blue-600 transition-colors"
                           title="Edit languages"
                         >
@@ -1989,15 +1986,15 @@ export default function Home() {
                         </button>
                       </div>
                       
-                      {editingSection === 'languages' ? (
+                      {editingSection === 'languages' && editingData?.type === 'languages' ? (
                         <div className="space-y-3">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Languages (comma-separated)</label>
                             <textarea
-                              value={Array.isArray(editingData) ? editingData.join(', ') : editingData}
+                              value={editingData.data.join(', ')}
                               onChange={(e) => {
                                 // Keep the raw text for editing, only split when saving
-                                setEditingData(e.target.value);
+                                setEditingData({...editingData, data: e.target.value.split(',').map(s => s.trim()).filter(s => s)});
                               }}
                               className="w-full p-3 border border-gray-300 rounded-lg h-24 resize-none text-gray-900 bg-white"
                               placeholder="English (Native), Spanish (Fluent), French (Conversational)"
@@ -2034,7 +2031,7 @@ export default function Home() {
                           REFERENCES
                         </h2>
                         <button
-                          onClick={() => startEditing('references', resumeData.references)}
+                          onClick={() => startEditing('references', { type: 'references', data: resumeData.references })}
                           className="text-gray-500 hover:text-blue-600 transition-colors"
                           title="Edit references"
                         >
@@ -2042,14 +2039,14 @@ export default function Home() {
                         </button>
                       </div>
                       
-                      {editingSection === 'references' ? (
+                      {editingSection === 'references' && editingData?.type === 'references' ? (
                         <div className="space-y-4">
-                          {(editingData as ResumeData['references']).map((ref, index: number) => (
+                          {editingData.data.map((ref, index: number) => (
                             <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                               <button
                                 onClick={() => {
-                                  const newData = (editingData as ResumeData['references']).filter((_, i: number) => i !== index);
-                                  setEditingData(newData);
+                                  const newData = editingData.data.filter((_, i: number) => i !== index);
+                                  setEditingData({...editingData, data: newData});
                                 }}
                                 className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
                                 title="Remove this reference"
@@ -2061,9 +2058,9 @@ export default function Home() {
                                   type="text"
                                   value={ref.name}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].name = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Reference Name"
@@ -2072,9 +2069,9 @@ export default function Home() {
                                   type="text"
                                   value={ref.title}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].title = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Title/Position"
@@ -2085,9 +2082,9 @@ export default function Home() {
                                   type="text"
                                   value={ref.company}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].company = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Company"
@@ -2096,9 +2093,9 @@ export default function Home() {
                                   type="text"
                                   value={ref.contact}
                                   onChange={(e) => {
-                                    const newData = [...editingData];
+                                    const newData = [...editingData.data];
                                     newData[index].contact = e.target.value;
-                                    setEditingData(newData);
+                                    setEditingData({...editingData, data: newData});
                                   }}
                                   className="p-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
                                   placeholder="Contact Information"
@@ -2109,8 +2106,8 @@ export default function Home() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
-                                const newData = [...editingData, { name: '', title: '', company: '', contact: '' }];
-                                setEditingData(newData);
+                                const newData = [...editingData.data, { name: '', title: '', company: '', contact: '' }];
+                                setEditingData({...editingData, data: newData});
                               }}
                               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
                             >
