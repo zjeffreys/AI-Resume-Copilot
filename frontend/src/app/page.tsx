@@ -3,6 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Upload, FileText, Download, Target, Edit2, Save, X, Info, Trash2 } from 'lucide-react';
 
+// API URL configuration - reads from environment variable or defaults to localhost
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 interface ResumeData {
   name: string;
   email: string;
@@ -149,7 +152,7 @@ export default function Home() {
       formData.append('file', file);
 
       // Call the backend parsing API
-      const response = await fetch('http://localhost:8000/parse-resume', {
+      const response = await fetch(`${API_URL}/parse-resume`, {
         method: 'POST',
         body: formData,
       });
@@ -203,7 +206,7 @@ export default function Home() {
     setIsAnalyzing(true);
     
     try {
-      const response = await fetch('http://localhost:8000/analyze-ats', {
+      const response = await fetch(`${API_URL}/analyze-ats`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -500,7 +503,7 @@ export default function Home() {
           throw new Error('Invalid section');
       }
 
-      const response = await fetch('http://localhost:8000/optimize-section', {
+      const response = await fetch(`${API_URL}/optimize-section`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -577,7 +580,7 @@ export default function Home() {
             continue;
         }
 
-        const response = await fetch('http://localhost:8000/optimize-section', {
+        const response = await fetch(`${API_URL}/optimize-section`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -878,7 +881,7 @@ export default function Home() {
 
   const downloadAsPDF = async (data: ResumeData) => {
     try {
-      const response = await fetch('http://localhost:8000/generate-pdf', {
+      const response = await fetch(`${API_URL}/generate-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -907,7 +910,7 @@ export default function Home() {
 
   const downloadAsDOCX = async (data: ResumeData) => {
     try {
-      const response = await fetch('http://localhost:8000/generate-docx', {
+      const response = await fetch(`${API_URL}/generate-docx`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
