@@ -101,11 +101,14 @@ interface ATSAnalysisResponse {
 
 interface SectionOptimizationResponse {
   success: boolean;
-  optimized_section: any;
+  optimized_section: Record<string, unknown>;
   explanation: string;
   changes_made: string[];
   message: string;
 }
+
+type EditingDataType = string | string[] | ResumeData[keyof ResumeData] | null;
+type SectionDataType = string | string[] | unknown[] | null;
 
 export default function Home() {
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
@@ -115,7 +118,7 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'upload' | 'display'>('upload');
   const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [editingData, setEditingData] = useState<any>(null);
+  const [editingData, setEditingData] = useState<EditingDataType>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Optimization state
@@ -127,7 +130,7 @@ export default function Home() {
   const [showOptimizationModal, setShowOptimizationModal] = useState(false);
   const [showATSInfoModal, setShowATSInfoModal] = useState(false);
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
-  const [previousSectionData, setPreviousSectionData] = useState<any>(null);
+  const [previousSectionData, setPreviousSectionData] = useState<SectionDataType>(null);
   const [bulkOptimizationProgress, setBulkOptimizationProgress] = useState<{current: number, total: number} | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -231,7 +234,7 @@ export default function Home() {
     }
   };
 
-  const startEditing = (section: string, data: any) => {
+  const startEditing = (section: string, data: EditingDataType) => {
     setEditingSection(section);
     setEditingData(data);
   };
@@ -258,7 +261,7 @@ export default function Home() {
         break;
       case 'experience':
         // Process experience data to handle description strings
-        const processedExperience = editingData.map((exp: any) => ({
+        const processedExperience = (editingData as ResumeData['experience']).map((exp) => ({
           ...exp,
           description: typeof exp.description === 'string' 
             ? exp.description.split('\n').filter((line: string) => line.trim())
@@ -271,7 +274,7 @@ export default function Home() {
         break;
       case 'projects':
         // Process projects data to handle description strings
-        const processedProjects = editingData.map((project: any) => ({
+        const processedProjects = (editingData as ResumeData['projects']).map((project) => ({
           ...project,
           description: typeof project.description === 'string' 
             ? project.description.split('\n').filter((line: string) => line.trim())
@@ -429,8 +432,7 @@ export default function Home() {
     
     try {
       // Get current section data and wrap in appropriate format for backend (expects dict)
-      let sectionData: any;
-      const rawData = resumeData[optimizingSection as keyof ResumeData];
+      let sectionData: Record<string, unknown>;
       
       switch (optimizingSection) {
         case 'summary':
@@ -538,7 +540,7 @@ export default function Home() {
     if (!resumeData || !jobDescription || !optimizingSection) return;
     
     setIsOptimizing(true);
-    const sectionArray = resumeData[optimizingSection as keyof ResumeData] as any[];
+    const sectionArray = resumeData[optimizingSection as keyof ResumeData] as unknown[];
     
     if (!Array.isArray(sectionArray)) {
       setIsOptimizing(false);
@@ -546,14 +548,14 @@ export default function Home() {
     }
 
     const totalItems = sectionArray.length;
-    const optimizedItems: any[] = [];
+    const optimizedItems: unknown[] = [];
     const allChanges: string[] = [];
 
     try {
       for (let i = 0; i < totalItems; i++) {
         setBulkOptimizationProgress({ current: i + 1, total: totalItems });
         
-        let sectionData: any;
+        let sectionData: Record<string, unknown>;
         switch (optimizingSection) {
           case 'experience':
             sectionData = { experience: [sectionArray[i]] };
@@ -606,7 +608,7 @@ export default function Home() {
 
       // Apply all optimizations at once
       const updatedResumeData = { ...resumeData };
-      (updatedResumeData as any)[optimizingSection] = optimizedItems;
+      (updatedResumeData as Record<string, unknown>)[optimizingSection] = optimizedItems;
       setResumeData(updatedResumeData);
 
       // Set combined results
@@ -725,22 +727,22 @@ export default function Home() {
         updatedResumeData.skills = previousSectionData as string[];
         break;
       case 'experience':
-        updatedResumeData.experience = previousSectionData as any[];
+        updatedResumeData.experience = previousSectionData as ResumeData['experience'];
         break;
       case 'education':
-        updatedResumeData.education = previousSectionData as any[];
+        updatedResumeData.education = previousSectionData as ResumeData['education'];
         break;
       case 'projects':
-        updatedResumeData.projects = previousSectionData as any[];
+        updatedResumeData.projects = previousSectionData as ResumeData['projects'];
         break;
       case 'publications':
-        updatedResumeData.publications = previousSectionData as any[];
+        updatedResumeData.publications = previousSectionData as ResumeData['publications'];
         break;
       case 'certifications':
-        updatedResumeData.certifications = previousSectionData as any[];
+        updatedResumeData.certifications = previousSectionData as ResumeData['certifications'];
         break;
       case 'volunteer_experience':
-        updatedResumeData.volunteer_experience = previousSectionData as any[];
+        updatedResumeData.volunteer_experience = previousSectionData as ResumeData['volunteer_experience'];
         break;
       case 'awards':
         updatedResumeData.awards = previousSectionData as string[];
@@ -749,7 +751,7 @@ export default function Home() {
         updatedResumeData.languages = previousSectionData as string[];
         break;
       case 'references':
-        updatedResumeData.references = previousSectionData as any[];
+        updatedResumeData.references = previousSectionData as ResumeData['references'];
         break;
     }
 
@@ -1323,11 +1325,11 @@ export default function Home() {
                     
                     {editingSection === 'experience' ? (
                       <div className="space-y-4">
-                        {editingData.map((exp: any, index: number) => (
+                        {(editingData as ResumeData['experience']).map((exp, index: number) => (
                           <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                             <button
                               onClick={() => {
-                                const newData = editingData.filter((_: any, i: number) => i !== index);
+                                const newData = (editingData as ResumeData['experience']).filter((_, i: number) => i !== index);
                                 setEditingData(newData);
                               }}
                               className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
@@ -1469,11 +1471,11 @@ export default function Home() {
                     
                     {editingSection === 'education' ? (
                       <div className="space-y-4">
-                        {editingData.map((edu: any, index: number) => (
+                        {(editingData as ResumeData['education']).map((edu, index: number) => (
                           <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                             <button
                               onClick={() => {
-                                const newData = editingData.filter((_: any, i: number) => i !== index);
+                                const newData = (editingData as ResumeData['education']).filter((_, i: number) => i !== index);
                                 setEditingData(newData);
                               }}
                               className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
@@ -1619,11 +1621,11 @@ export default function Home() {
                       </div>
                       {editingSection === 'projects' ? (
                         <div className="space-y-4">
-                          {editingData.map((project: any, index: number) => (
+                          {(editingData as ResumeData['projects']).map((project, index: number) => (
                             <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                               <button
                                 onClick={() => {
-                                  const newData = editingData.filter((_: any, i: number) => i !== index);
+                                  const newData = (editingData as ResumeData['projects']).filter((_, i: number) => i !== index);
                                   setEditingData(newData);
                                 }}
                                 className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
@@ -1808,11 +1810,11 @@ export default function Home() {
                       
                       {editingSection === 'certifications' ? (
                         <div className="space-y-4">
-                          {editingData.map((cert: any, index: number) => (
+                          {(editingData as ResumeData['certifications']).map((cert, index: number) => (
                             <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                               <button
                                 onClick={() => {
-                                  const newData = editingData.filter((_: any, i: number) => i !== index);
+                                  const newData = (editingData as ResumeData['certifications']).filter((_, i: number) => i !== index);
                                   setEditingData(newData);
                                 }}
                                 className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
@@ -2042,11 +2044,11 @@ export default function Home() {
                       
                       {editingSection === 'references' ? (
                         <div className="space-y-4">
-                          {editingData.map((ref: any, index: number) => (
+                          {(editingData as ResumeData['references']).map((ref, index: number) => (
                             <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
                               <button
                                 onClick={() => {
-                                  const newData = editingData.filter((_: any, i: number) => i !== index);
+                                  const newData = (editingData as ResumeData['references']).filter((_, i: number) => i !== index);
                                   setEditingData(newData);
                                 }}
                                 className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
@@ -2596,13 +2598,13 @@ export default function Home() {
                   </h4>
                   <p className="text-blue-700 dark:text-blue-300 text-sm">
                     An ATS is basically a searchable database + workflow management system. 
-                    It's like a big filing cabinet that helps companies organize job applications.
+                    It&apos;s like a big filing cabinet that helps companies organize job applications.
                   </p>
                 </div>
 
                 <div>
                   <h4 className="font-semibold text-gray-900 dark:text-white mb-4">
-                    Here's the real process:
+                    Here&apos;s the real process:
                   </h4>
                   <div className="space-y-4">
                     <div className="flex items-start space-x-3">
@@ -2613,7 +2615,7 @@ export default function Home() {
                         <h5 className="font-medium text-gray-900 dark:text-white">Collection & Storage</h5>
                         <p className="text-gray-600 dark:text-gray-300 text-sm">
                           Resumes come in → ATS reads them → stores the information in a database. 
-                          It's just organizing applications, not comparing them to each other. 
+                          It&apos;s just organizing applications, not comparing them to each other. 
                           Think of it like putting all the resumes in digital folders.
                         </p>
                       </div>
@@ -2626,16 +2628,16 @@ export default function Home() {
                       <div>
                         <h5 className="font-medium text-gray-900 dark:text-white">Recruiter-Driven Search (This is the key part!)</h5>
                         <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">
-                          The ATS doesn't automatically "choose" candidates. Instead:
+                          The ATS doesn&apos;t automatically &ldquo;choose&rdquo; candidates. Instead:
                         </p>
                         <p className="text-gray-600 dark:text-gray-300 text-sm">
                           Recruiter logs in → Searches/filters the database like:
                         </p>
                         <ul className="text-gray-600 dark:text-gray-300 text-sm mt-2 ml-4 space-y-1">
-                          <li>• "Show me candidates with 'Python' AND 'AWS'"</li>
-                          <li>• "Filter: Bachelor's degree required"</li>
-                          <li>• "Filter: 5+ years experience"</li>
-                          <li>• "Location: Seattle"</li>
+                          <li>• &ldquo;Show me candidates with &lsquo;Python&rsquo; AND &lsquo;AWS&rsquo;&rdquo;</li>
+                          <li>• &ldquo;Filter: Bachelor&apos;s degree required&rdquo;</li>
+                          <li>• &ldquo;Filter: 5+ years experience&rdquo;</li>
+                          <li>• &ldquo;Location: Seattle&rdquo;</li>
                         </ul>
                       </div>
                     </div>
@@ -2649,7 +2651,7 @@ export default function Home() {
                         <p className="text-gray-600 dark:text-gray-300 text-sm">
                           Recruiter gets a list of matching candidates → Human reads the resumes that passed filters → 
                           Human writes notes in the system → Human decides who to interview. 
-                          It's always a real person making the final decision!
+                          It&apos;s always a real person making the final decision!
                         </p>
                       </div>
                     </div>
@@ -2673,7 +2675,7 @@ export default function Home() {
                   <p className="text-yellow-700 dark:text-yellow-300 text-sm">
                     This AI Resume Copilot simulates ATS behavior for educational purposes only. 
                     Real ATS systems work differently at each company, but the basic idea is always the same: 
-                    it's a database that helps recruiters find the right people for the job.
+                    it&apos;s a database that helps recruiters find the right people for the job.
                   </p>
                 </div>
 
