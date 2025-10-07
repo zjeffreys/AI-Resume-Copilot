@@ -64,7 +64,8 @@ class Config:
     
     # CORS Configuration
     CORS = {
-        "allowed_origins": os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+        # "allowed_origins": os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+        "allowed_origins": ["*"], # Allow all origins for now todo: Remove this
         "allow_credentials": True,
         "allow_methods": ["*"],
         "allow_headers": ["*"]
