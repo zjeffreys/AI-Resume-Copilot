@@ -496,9 +496,9 @@ def analyze_resume_with_ats(resume_data: ResumeData, job_description: str) -> AT
             "removable_words": ["passionate about", "detail-oriented", "team player", "hard worker", "excellent communication skills"]
         }}
 
-        STRICT Analysis Guidelines:
+        Analysis Guidelines:
         1. Score conservatively (0-100) - real ATS systems are harsh
-        2. Be unforgiving about missing required skills/qualifications
+        2. Be honest about missing required skills/qualifications
         3. Identify specific keywords that match and are missing from job description
         4. Highlight experience gaps that would cause immediate rejection
         5. Provide actionable recommendations with priority levels
@@ -632,13 +632,22 @@ def optimize_section_with_chatgpt(resume_data: ResumeData, job_description: str,
         3. Maintain authenticity and truthfulness - only enhance what's already there
         4. Use action verbs and quantifiable achievements where possible
         5. Ensure the optimized content flows naturally and professionally
-        6. Keep the same structure and format as the original
+        6. Keep the EXACT SAME structure and format as the original
         7. Focus on relevance to the specific job posting
+
+        CRITICAL FORMATTING RULES:
+        - PRESERVE the exact data structure (arrays stay arrays, strings stay strings)
+        - Keep the SAME NUMBER of items (bullet points, skills, entries) unless user specifically requests more/less
+        - Do NOT change the presentation format (e.g., if skills are a list, keep them as a list)
+        - If the input has 5 bullet points, the output must have exactly 5 bullet points
+        - If the input is comma-separated values, keep it comma-separated
+        - Only improve the CONTENT and WORDING, not the structure or quantity
 
         IMPORTANT RULES:
         - Do NOT add false information or experiences
         - Do NOT change dates, company names, or other factual details
         - Do NOT make the content longer than necessary
+        - Do NOT add or remove items unless explicitly requested by the user
         - Maintain the original tone and style
         - Only enhance and rephrase existing content for better impact
         """
@@ -662,26 +671,32 @@ def optimize_section_with_chatgpt(resume_data: ResumeData, job_description: str,
         - Highlight the most relevant skills and experiences
         - Keep it concise (2-3 sentences)
         - Use keywords from the job description naturally
+        - Maintain the same length and tone as the original
         """
         elif section == "experience":
             base_prompt += """
         
         For experience entries:
+        - Keep the EXACT SAME NUMBER of bullet points for each position
         - Start bullet points with strong action verbs
-        - Quantify achievements with numbers, percentages, or timeframes
+        - Quantify achievements with numbers, percentages, or timeframes where possible
         - Focus on results and impact rather than just responsibilities
-        - Use keywords from the job description
+        - Use keywords from the job description naturally
         - Keep each bullet point concise but impactful
+        - Only improve the wording and relevance of existing bullets, do NOT add or remove any
+        - If there are 3 bullets in the input, there must be exactly 3 bullets in the output
         """
         elif section == "skills":
             base_prompt += """
         
         For skills section:
-        - Prioritize skills mentioned in the job description
-        - Group related skills together
-        - Use the exact terminology from the job posting
-        - Remove outdated or irrelevant skills if space is limited
-        - Add proficiency levels if appropriate
+        - MAINTAIN the exact format (if it's an array/list, keep it as an array/list)
+        - Prioritize skills mentioned in the job description by reordering them
+        - Replace or improve skill names to match job description terminology
+        - Keep the same number of skills unless user asks for more/less
+        - Do NOT convert the list into a paragraph or change the structure
+        - Keep it as a clean, comma-separated list format
+        - Only modify the skill names to be more relevant or precise
         """
 
         base_prompt += """
@@ -689,14 +704,30 @@ def optimize_section_with_chatgpt(resume_data: ResumeData, job_description: str,
         Please return your response in the following JSON format:
         {
             "optimized_section": {
-                // The optimized section data in the same structure as the input
+                // The optimized section data in the EXACT SAME structure as the input
+                // If input has an array with 5 items, output must have array with 5 items
+                // If input is a string, output must be a string
+                // PRESERVE the data types and structure completely
             },
-            "explanation": "Brief explanation of what was optimized and why",
+            "explanation": "Brief explanation of what was optimized and why (focus on content improvements, not structural changes)",
             "changes_made": [
-                "List of specific changes made",
-                "Each change as a separate string"
+                "Reordered skills to prioritize job-relevant ones",
+                "Enhanced bullet point wording for impact",
+                "Added quantifiable metrics to existing bullet",
+                // List specific content changes, not structural changes
+                // Each change as a separate string
             ]
         }
+
+        EXAMPLE - If optimizing skills ["Python", "JavaScript", "C++"] for a Python job:
+        CORRECT: Return ["Python", "Django", "JavaScript"] (same count, better terminology, reordered)
+        WRONG: Return "Proficient in Python, JavaScript, and C++ with expertise in..." (changed format to paragraph)
+        WRONG: Return ["Python", "Django", "Flask", "JavaScript", "React", "C++"] (added items)
+
+        EXAMPLE - If optimizing experience with 4 bullets:
+        CORRECT: Return exactly 4 improved bullets
+        WRONG: Return 6 bullets (added items)
+        WRONG: Return 3 bullets (removed items)
 
         Return only the JSON object, no additional text or formatting.
         """
@@ -849,8 +880,8 @@ def generate_pdf(resume_data: ResumeData) -> bytes:
         story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
         story.append(Paragraph(resume_data.summary, normal_style))
         
-        # Skills & Other
-        story.append(Paragraph("SKILLS & OTHER", header_style))
+        # Skills
+        story.append(Paragraph("SKILLS", header_style))
         story.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=black, spaceAfter=4, spaceBefore=0))
         story.append(Paragraph(f"<b>Skills:</b> {', '.join(resume_data.skills)}", normal_style))
         
@@ -1033,8 +1064,8 @@ def generate_docx(resume_data: ResumeData) -> bytes:
         summary_para = doc.add_paragraph(resume_data.summary)
         summary_para.runs[0].font.size = Pt(fonts["body_size"])
         
-        # Skills & Other
-        doc.add_heading('SKILLS & OTHER', level=1)
+        # Skills
+        doc.add_heading('SKILLS', level=1)
         skills_para = doc.add_paragraph(f"Skills: {', '.join(resume_data.skills)}")
         skills_para.runs[0].font.size = Pt(fonts["body_size"])
         

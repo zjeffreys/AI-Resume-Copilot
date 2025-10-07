@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Upload, FileText, Download, Target, Edit2, Save, X, Info } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Upload, FileText, Download, Target, Edit2, Save, X, Info, Trash2 } from 'lucide-react';
 
 interface ResumeData {
   name: string;
@@ -126,6 +126,8 @@ export default function Home() {
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
   const [previousSectionData, setPreviousSectionData] = useState<any>(null);
   const [bulkOptimizationProgress, setBulkOptimizationProgress] = useState<{current: number, total: number} | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -369,6 +371,41 @@ export default function Home() {
     setPreviousSectionData(null);
     setBulkOptimizationProgress(null);
   };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (popupPosition && !isDragging) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - popupPosition.left,
+        y: e.clientY - popupPosition.top,
+      });
+    }
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging && popupPosition) {
+      setPopupPosition({
+        left: e.clientX - dragOffset.x,
+        top: e.clientY - dragOffset.y,
+      });
+    }
+  }, [isDragging, popupPosition, dragOffset]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add global event listeners for dragging
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   const optimizeSection = async () => {
     if (!resumeData || !jobDescription || !optimizingSection) {
@@ -1182,11 +1219,11 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Skills & Other */}
+                  {/* Skills */}
                   <div className="mb-8">
                     <div className="flex justify-between items-center mb-3">
                       <h2 className="text-lg font-bold text-gray-900 dark:text-gray-900 border-b border-gray-900 dark:border-gray-900 pb-1 uppercase tracking-wide">
-                        SKILLS & OTHER
+                        SKILLS
                       </h2>
                       <div className="flex gap-2">
                         <button
@@ -1284,7 +1321,17 @@ export default function Home() {
                     {editingSection === 'experience' ? (
                       <div className="space-y-4">
                         {editingData.map((exp: any, index: number) => (
-                          <div key={index} className="border border-gray-300 rounded-lg p-4">
+                          <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
+                            <button
+                              onClick={() => {
+                                const newData = editingData.filter((_: any, i: number) => i !== index);
+                                setEditingData(newData);
+                              }}
+                              className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
+                              title="Remove this experience"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                               <input
                                 type="text"
@@ -1420,7 +1467,17 @@ export default function Home() {
                     {editingSection === 'education' ? (
                       <div className="space-y-4">
                         {editingData.map((edu: any, index: number) => (
-                          <div key={index} className="border border-gray-300 rounded-lg p-4">
+                          <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
+                            <button
+                              onClick={() => {
+                                const newData = editingData.filter((_: any, i: number) => i !== index);
+                                setEditingData(newData);
+                              }}
+                              className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
+                              title="Remove this education"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                               <input
                                 type="text"
@@ -1560,7 +1617,17 @@ export default function Home() {
                       {editingSection === 'projects' ? (
                         <div className="space-y-4">
                           {editingData.map((project: any, index: number) => (
-                            <div key={index} className="border border-gray-300 rounded-lg p-4">
+                            <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
+                              <button
+                                onClick={() => {
+                                  const newData = editingData.filter((_: any, i: number) => i !== index);
+                                  setEditingData(newData);
+                                }}
+                                className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
+                                title="Remove this project"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                                 <input
                                   type="text"
@@ -1739,7 +1806,17 @@ export default function Home() {
                       {editingSection === 'certifications' ? (
                         <div className="space-y-4">
                           {editingData.map((cert: any, index: number) => (
-                            <div key={index} className="border border-gray-300 rounded-lg p-4">
+                            <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
+                              <button
+                                onClick={() => {
+                                  const newData = editingData.filter((_: any, i: number) => i !== index);
+                                  setEditingData(newData);
+                                }}
+                                className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
+                                title="Remove this certification"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                                 <input
                                   type="text"
@@ -1963,7 +2040,17 @@ export default function Home() {
                       {editingSection === 'references' ? (
                         <div className="space-y-4">
                           {editingData.map((ref: any, index: number) => (
-                            <div key={index} className="border border-gray-300 rounded-lg p-4">
+                            <div key={index} className="border border-gray-300 rounded-lg p-4 relative">
+                              <button
+                                onClick={() => {
+                                  const newData = editingData.filter((_: any, i: number) => i !== index);
+                                  setEditingData(newData);
+                                }}
+                                className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"
+                                title="Remove this reference"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                                 <input
                                   type="text"
@@ -2366,24 +2453,31 @@ export default function Home() {
               onClick={cancelOptimization}
             />
             <div 
-              className="fixed bg-white dark:bg-gray-800 rounded-lg p-4 w-80 shadow-2xl border border-gray-200 dark:border-gray-700 z-50 max-h-[calc(100vh-6rem)] overflow-y-auto mb-8"
+              className="fixed bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50 w-80"
               style={{
                 top: `${popupPosition.top}px`,
                 left: `${popupPosition.left}px`,
-                marginBottom: '2rem',
+                maxHeight: 'calc(100vh - 6rem)',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+              <div 
+                className="flex justify-between items-center p-4 pb-3 cursor-move border-b border-gray-200 dark:border-gray-700"
+                onMouseDown={handleMouseDown}
+              >
+                <h3 className="text-base font-bold text-gray-900 dark:text-white select-none">
                   {optimizingItemIndex !== null ? 'Optimize Item' : 'Optimize All'} - {optimizingSection ? optimizingSection.charAt(0).toUpperCase() + optimizingSection.slice(1) : ''}
                 </h3>
                 <button
                   onClick={cancelOptimization}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
+              <div className="p-4 overflow-y-auto flex-1">
 
               <div className="space-y-3">
                 <div>
@@ -2444,11 +2538,13 @@ export default function Home() {
                       <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-1.5">
                         Changes Made:
                       </h4>
-                      <ul className="list-disc list-inside space-y-0.5 text-xs text-gray-700 dark:text-gray-300">
-                        {optimizationResult.changes_made.map((change, index) => (
-                          <li key={index}>{change}</li>
-                        ))}
-                      </ul>
+                      <div className="max-h-48 overflow-y-auto pr-2">
+                        <ul className="list-disc list-inside space-y-0.5 text-xs text-gray-700 dark:text-gray-300">
+                          {optimizationResult.changes_made.map((change, index) => (
+                            <li key={index}>{change}</li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
 
                     <div className="flex gap-2">
@@ -2468,6 +2564,7 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+              </div>
               </div>
             </div>
           </>
